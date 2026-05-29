@@ -11,7 +11,7 @@ from agents.memory import get_recent_narrative, get_pair_context, get_performanc
 client = Groq(api_key=GROQ_API_KEY)
 
 def advise(pair: str, tech: dict, ict: dict,
-           session: str, account_balance: float = 200.0) -> dict:
+           session: str, account_balance: float = 10.0) -> dict:
     """
     Final synthesis. Returns trade recommendation or WAIT.
     """

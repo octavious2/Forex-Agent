@@ -1,3 +1,23 @@
+
+def expire_old_signals(hours: int = 8):
+    """Cancel signals that were never filled after N hours."""
+    import sqlite3
+    from pathlib import Path
+    from datetime import datetime, timezone, timedelta
+    DB_PATH = Path(__file__).parent.parent / "signals.db"
+    conn    = sqlite3.connect(DB_PATH)
+    c       = conn.cursor()
+    cutoff  = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    c.execute("""
+        UPDATE signals SET outcome='EXPIRED'
+        WHERE outcome='PENDING' AND created_at < ?
+    """, (cutoff,))
+    expired = c.rowcount
+    conn.commit()
+    conn.close()
+    if expired > 0:
+        print(f"  ⏰ Expired {expired} unfilled signals (>{hours}h old)")
+    return expired
 """
 Outcome Tracker — checks pending signals against current price.
 Runs every hour. Updates win/loss in database.
