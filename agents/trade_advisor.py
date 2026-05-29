@@ -105,12 +105,24 @@ Rules:
 - Stop loss must be beyond a structural level, not arbitrary"""
 
     try:
-        response = client.chat.completions.create(
-            model=LLAMA_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-            max_tokens=1500,
-        )
+        try:
+            response = client.chat.completions.create(
+                model=LLAMA_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=1500,
+            )
+        except Exception as rate_err:
+            if "429" in str(rate_err) or "rate_limit" in str(rate_err).lower():
+                print(f"[trade_advisor] 70B rate limited — falling back to 8B")
+                response = client.chat.completions.create(
+                    model=LLAMA_SMALL,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1,
+                    max_tokens=1500,
+                )
+            else:
+                raise
 
         raw = response.choices[0].message.content.strip()
 

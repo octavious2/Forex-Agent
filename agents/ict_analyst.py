@@ -94,12 +94,24 @@ Identify and respond ONLY with valid JSON (no markdown, no explanation outside J
 }}"""
 
     try:
-        response = client.chat.completions.create(
-            model=DEEPSEEK_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-            max_tokens=2000,
-        )
+        try:
+            response = client.chat.completions.create(
+                model=DEEPSEEK_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=2000,
+            )
+        except Exception as rate_err:
+            if "429" in str(rate_err) or "rate_limit" in str(rate_err).lower():
+                print(f"[ict_analyst] Qwen rate limited — falling back to 8B")
+                response = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1,
+                    max_tokens=1500,
+                )
+            else:
+                raise
 
         raw = response.choices[0].message.content.strip()
 

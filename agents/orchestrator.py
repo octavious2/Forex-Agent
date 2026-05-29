@@ -114,7 +114,7 @@ def run_once():
                     "analysis":   json.dumps(signal.get("reasoning", {})),
                 })
                 send_signal(signal)
-                _execute_on_mt5(signal, session)
+                _execute_on_mt5(signal, session, signal_id)
                 _signals_sent += 1
                 print(f"  ✅ Signal sent to Discord! (ID: {signal_id})")
             else:
@@ -159,7 +159,7 @@ def daily_heartbeat():
 if __name__ == "__main__":
     run_once()
 
-def _execute_on_mt5(signal: dict, session: str):
+def _execute_on_mt5(signal: dict, session: str, signal_id: int = 0):
     """Execute signal on MT5 demo account via file bridge."""
     try:
         from execution.mt5_bridge import send_trade, check_mt5_running
@@ -167,13 +167,14 @@ def _execute_on_mt5(signal: dict, session: str):
             print(f"  ⚠ MT5 EA not running — signal sent to Discord only")
             return
         # Use 0.01 lot for demo testing
+        signal["id"] = signal_id
         result = send_trade(signal, lot_size=0.01)
         status = result.get("status", "unknown")
         ticket = result.get("ticket", 0)
         if status == "executed":
             print(f"  🤖 MT5 EXECUTED: ticket #{ticket}")
-            from notifications.discord import _discord
-            _discord({"embeds": [{
+            from notifications.discord import send_discord
+            send_discord({"embeds": [{
                 "title": f"🤖 MT5 DEMO EXECUTED — {signal['pair']} {signal.get('decision','')}",
                 "color": 0x00FF88,
                 "fields": [
