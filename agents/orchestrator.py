@@ -16,6 +16,22 @@ _pairs_scanned = 0
 def run_once():
     global _signals_sent, _pairs_scanned
 
+    # Weekend check — forex closed Saturday and most of Sunday
+    from datetime import datetime, timezone
+    now     = datetime.now(timezone.utc)
+    weekday = now.weekday()  # 0=Monday, 5=Saturday, 6=Sunday
+    hour    = now.hour
+
+    if weekday == 5:  # Saturday — fully closed
+        print(f"\n💤 Saturday — forex market closed. Next scan Sunday 22:00 UTC.")
+        return
+    if weekday == 6 and hour < 22:  # Sunday before 22:00 UTC
+        print(f"\n💤 Sunday — market opens at 22:00 UTC ({22 - hour}h remaining).")
+        return
+    if weekday == 4 and hour >= 22:  # Friday after 22:00 UTC
+        print(f"\n💤 Friday close — market closed until Sunday 22:00 UTC.")
+        return
+
     session      = get_session()
     now          = datetime.now(timezone.utc).strftime("%H:%M UTC")
     scan_results = []   # collects what happened this scan for memory journal
