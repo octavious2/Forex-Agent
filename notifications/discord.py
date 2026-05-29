@@ -39,7 +39,7 @@ def send_signal(signal: dict):
         "fields": [
             {
                 "name": "📍 Entry Zone",
-                "value": f"`{signal.get('entry_low', '')} — {signal.get('entry_high', '')}`",
+                "value": f"`{signal.get('entry_low') or signal.get('entry_high') or 'Market'} — {signal.get('entry_high') or signal.get('entry_low') or 'Order'}`",
                 "inline": True
             },
             {
@@ -73,7 +73,7 @@ def send_signal(signal: dict):
             },
             {
                 "name": "🧠 Why Enter",
-                "value": reasoning.get("why_enter", "N/A")[:200],
+                "value": reasoning.get("why_enter", "N/A")[:400],
                 "inline": False
             },
             {

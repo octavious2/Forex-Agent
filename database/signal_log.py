@@ -161,15 +161,20 @@ def get_pending_signals() -> list:
     conn = sqlite3.connect(DB_PATH)
     c    = conn.cursor()
     c.execute("""
-        SELECT id, pair, direction, entry_high, stop_loss, tp1, tp2, tp3, created_at
+        SELECT id, pair, direction, entry_high, entry_low, stop_loss,
+               tp1, tp2, tp3, created_at
         FROM signals WHERE outcome='PENDING'
         ORDER BY created_at DESC
     """)
     rows = c.fetchall()
     conn.close()
-    return [
-        {"id": r[0], "pair": r[1], "direction": r[2],
-         "entry": r[3], "sl": r[4], "tp1": r[5],
-         "tp2": r[6], "tp3": r[7], "created_at": r[8]}
-        for r in rows
-    ]
+    result = []
+    for r in rows:
+        best_entry = r[3] or r[4] or 0
+        result.append({
+            "id": r[0], "pair": r[1], "direction": r[2],
+            "entry": best_entry, "entry_high": r[3], "entry_low": r[4],
+            "sl": r[5], "tp1": r[6], "tp2": r[7], "tp3": r[8],
+            "created_at": r[9]
+        })
+    return result

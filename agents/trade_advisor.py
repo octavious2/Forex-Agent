@@ -120,8 +120,21 @@ Rules:
             raw = raw.split("```")[1].split("```")[0].strip()
 
         result        = json.loads(raw)
-        result["pair"] = pair
+        result["pair"]  = pair
         result["price"] = price
+
+        # Ensure entry_low and entry_high are both populated
+        if not result.get("entry_low") and result.get("entry_high"):
+            pip = 0.0001
+            if "JPY" in pair: pip = 0.01
+            elif pair == "XAUUSD": pip = 0.1
+            result["entry_low"] = round(float(result["entry_high"]) - 5 * pip, 5)
+        elif not result.get("entry_high") and result.get("entry_low"):
+            pip = 0.0001
+            if "JPY" in pair: pip = 0.01
+            elif pair == "XAUUSD": pip = 0.1
+            result["entry_high"] = round(float(result["entry_low"]) + 5 * pip, 5)
+
         return result
 
     except json.JSONDecodeError as e:
