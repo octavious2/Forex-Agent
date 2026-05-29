@@ -15,17 +15,17 @@ def analyse(pair: str, tech_data: dict) -> dict:
     Run ICT analysis on a pair using DeepSeek-R1 reasoning.
     tech_data: output from technical.py analyse()
     """
-    df_4h  = get_candles(pair, "4h",   50)
-    df_1h  = get_candles(pair, "1h",   50)
-    df_15m = get_candles(pair, "15min", 30)
+    df_4h  = get_candles(pair, "4h",   20)
+    df_1h  = get_candles(pair, "1h",   20)
+    df_15m = get_candles(pair, "15min", 10)
 
     if df_1h.empty:
         return {"pair": pair, "error": "No price data"}
 
     # Build raw price context for the model
-    candles_4h  = _candles_to_text(df_4h.tail(10),  "4H")
-    candles_1h  = _candles_to_text(df_1h.tail(15),  "1H")
-    candles_15m = _candles_to_text(df_15m.tail(10), "15M")
+    candles_4h  = _candles_to_text(df_4h.tail(6),  "4H")
+    candles_1h  = _candles_to_text(df_1h.tail(8),  "1H")
+    candles_15m = _candles_to_text(df_15m.tail(5), "15M")
 
     price   = tech_data.get("current_price", 0)
     pip     = pip_value(pair)

@@ -49,3 +49,7 @@ SESSIONS = {
     "london":   (7,  16),
     "new_york": (12, 21),
 }
+
+# Fast small model for low-criticality tasks (fundamental, memory journal)
+# Uses ~80% fewer tokens than Llama 70B
+LLAMA_SMALL = "llama-3.1-8b-instant"

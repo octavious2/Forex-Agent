@@ -174,7 +174,7 @@ def _groq_fallback(prompt: str) -> dict:
                 {"role": "system", "content": "Respond only in JSON."},
                 {"role": "user",   "content": prompt}
             ],
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             response_format={"type": "json_object"},
             temperature=0.1
         )
