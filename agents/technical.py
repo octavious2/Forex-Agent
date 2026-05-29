@@ -101,7 +101,7 @@ def _query_groq_analyst(prompt: str) -> dict:
                 {"role": "system", "content": "You are a quantitative finance bot. Respond exclusively in structured JSON formats."},
                 {"role": "user", "content": prompt}
             ],
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             response_format={"type": "json_object"},
             temperature=0.2
         )
