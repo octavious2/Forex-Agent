@@ -24,11 +24,40 @@ GROQ_KEY = os.getenv("GROQ_API_KEY")
 client   = Groq(api_key=GROQ_KEY)
 DB_PATH  = Path(__file__).parent.parent / "signals.db"
 
-# Track last notification time per signal to avoid spam
-_last_notified = {}   # signal_id → last notification type
+# Track last notification — loaded from DB on startup, persisted after each update
+import json as _json
+_last_notified = {}
+
+def _load_notified():
+    """Load notification state from database on startup."""
+    global _last_notified
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c    = conn.cursor()
+        c.execute("SELECT signal_id, state FROM signal_notify_state")
+        for sig_id, state in c.fetchall():
+            _last_notified[sig_id] = _json.loads(state)
+        conn.close()
+    except:
+        pass
+
+def _save_notified(sig_id, state):
+    """Persist notification state so restarts don't re-fire."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c    = conn.cursor()
+        c.execute("""CREATE TABLE IF NOT EXISTS signal_notify_state
+                      (signal_id INTEGER PRIMARY KEY, state TEXT)""")
+        c.execute("INSERT OR REPLACE INTO signal_notify_state VALUES (?,?)",
+                  (sig_id, _json.dumps(state)))
+        conn.commit()
+        conn.close()
+    except:
+        pass
 
 def monitor_all():
     """Check all pending signals and send relevant updates."""
+    _load_notified()
     signals = get_pending_signals()
     if not signals:
         return
@@ -93,6 +122,7 @@ def _check_signal(sig: dict):
         update_outcome(sig_id, "WIN", 3, pips)
         _send_outcome(sig, "WIN", 3, pips, price)
         _last_notified[sig_id] = {**last, "tp": 3}
+        _save_notified(sig_id, _last_notified[sig_id])
         print(f"  🏆 {pair} TP3 HIT! +{pips} pips")
         return
 
@@ -101,6 +131,7 @@ def _check_signal(sig: dict):
         update_outcome(sig_id, "WIN", 2, pips)
         _send_outcome(sig, "WIN", 2, pips, price)
         _last_notified[sig_id] = {**last, "tp": 2}
+        _save_notified(sig_id, _last_notified[sig_id])
         print(f"  ✅ {pair} TP2 HIT! +{pips} pips")
         return
 
@@ -109,6 +140,7 @@ def _check_signal(sig: dict):
         # Don't close — TP1 just means move SL to breakeven
         _send_tp1_update(sig, pips, price, tp2, tp3)
         _last_notified[sig_id] = {**last, "tp": 1}
+        _save_notified(sig_id, _last_notified[sig_id])
         print(f"  ✅ {pair} TP1 HIT — move SL to breakeven")
         return
 
@@ -118,6 +150,7 @@ def _check_signal(sig: dict):
         update_outcome(sig_id, "LOSS", 0, -pips)
         _send_outcome(sig, "LOSS", 0, -pips, price)
         _last_notified[sig_id] = {**last, "sl_hit": True}
+        _save_notified(sig_id, _last_notified[sig_id])
         print(f"  ❌ {pair} STOPPED OUT -{pips} pips")
         return
 
@@ -128,6 +161,7 @@ def _check_signal(sig: dict):
         eta = _estimate_eta(pair, direction, price, entry)
         _send_approaching_entry(sig, price, pips_to_entry, eta)
         _last_notified[sig_id] = {**last, "near_entry": True}
+        _save_notified(sig_id, _last_notified[sig_id])
         print(f"  📍 {pair} approaching entry — {pips_to_entry:.1f} pips away")
         return
 
@@ -135,6 +169,7 @@ def _check_signal(sig: dict):
     if at_entry and not last.get("in_zone"):
         _send_in_zone(sig, price, pips_to_tp1, pips_to_sl)
         _last_notified[sig_id] = {**last, "in_zone": True}
+        _save_notified(sig_id, _last_notified[sig_id])
         print(f"  🎯 {pair} IN ENTRY ZONE — take the trade!")
         return
 
@@ -143,6 +178,7 @@ def _check_signal(sig: dict):
         analysis = _analyse_deterioration(pair, direction, price, entry, sl)
         _send_warning(sig, price, analysis)
         _last_notified[sig_id] = {**last, "warned": True}
+        _save_notified(sig_id, _last_notified[sig_id])
         print(f"  ⚠ {pair} moving away from entry")
         return
 
@@ -152,6 +188,7 @@ def _check_signal(sig: dict):
         progress = _get_progress(direction, price, entry, sl, tp1)
         _send_status(sig, price, pips_to_entry, pips_to_tp1,
                      pips_to_sl, progress)
+        _save_notified(sig_id, {**last, "status_time": datetime.now(timezone.utc).isoformat()})
         _last_notified[sig_id] = {
             **last, "status_time": datetime.now(timezone.utc).isoformat()
         }
