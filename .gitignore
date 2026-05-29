@@ -1,0 +1,12 @@
+# Never commit these
+.env
+signals.db
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.cache/
+*.egg-info/
+dist/
+build/
+.DS_Store
