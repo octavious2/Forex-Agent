@@ -66,7 +66,7 @@ def _check_signal(sig: dict):
         pips_to_sl    = (price - sl)   / pip
         pips_to_tp1   = (tp1 - price)  / pip
         pips_to_tp2   = (tp2 - price)  / pip  if tp2 else 0
-        at_entry      = price <= entry * 1.0002 and price >= sl
+        at_entry      = (entry - price) / pip <= 3 and price >= sl
         hit_tp1       = price >= tp1
         hit_tp2       = price >= tp2 if tp2 else False
         hit_tp3       = price >= tp3 if tp3 else False
@@ -78,7 +78,7 @@ def _check_signal(sig: dict):
         pips_to_sl    = (sl - price)   / pip
         pips_to_tp1   = (price - tp1)  / pip
         pips_to_tp2   = (price - tp2)  / pip  if tp2 else 0
-        at_entry      = price >= entry * 0.9998 and price <= sl
+        at_entry      = (price - entry) / pip <= 3 and price <= sl
         hit_tp1       = price <= tp1
         hit_tp2       = price <= tp2 if tp2 else False
         hit_tp3       = price <= tp3 if tp3 else False
@@ -122,7 +122,9 @@ def _check_signal(sig: dict):
         return
 
     # ── Approaching entry ─────────────────────────────────────────────
-    if pips_to_entry > 0 and pips_to_entry < 15 and not last.get("near_entry"):
+    # Pair-aware approach threshold: Gold=30 pips, JPY pairs=20 pips, others=12 pips
+        approach_threshold = 30 if pair == "XAUUSD" else 20 if "JPY" in pair else 12
+        if pips_to_entry > 0 and pips_to_entry < approach_threshold and not last.get("near_entry"):
         eta = _estimate_eta(pair, direction, price, entry)
         _send_approaching_entry(sig, price, pips_to_entry, eta)
         _last_notified[sig_id] = {**last, "near_entry": True}
