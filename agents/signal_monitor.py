@@ -155,9 +155,8 @@ def _check_signal(sig: dict):
         return
 
     # ── Approaching entry ─────────────────────────────────────────────
-    # Pair-aware approach threshold: Gold=30 pips, JPY pairs=20 pips, others=12 pips
-        approach_threshold = 30 if pair == "XAUUSD" else 20 if "JPY" in pair else 12
-        if pips_to_entry > 0 and pips_to_entry < approach_threshold and not last.get("near_entry"):
+    approach_threshold = 30 if pair == "XAUUSD" else 20 if "JPY" in pair else 12
+    if pips_to_entry > 0 and pips_to_entry < approach_threshold and not last.get("near_entry"):
         eta = _estimate_eta(pair, direction, price, entry)
         _send_approaching_entry(sig, price, pips_to_entry, eta)
         _last_notified[sig_id] = {**last, "near_entry": True}
