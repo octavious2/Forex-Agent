@@ -204,3 +204,11 @@ def _execute_on_mt5(signal: dict, session: str, signal_id: int = 0):
             print(f"  ⚠ MT5 execution: {status} — {result.get('message','')}")
     except Exception as e:
         print(f"  ⚠ MT5 bridge error: {e}")
+
+def _apply_bias_correction(pair: str, decision: str, confidence: int) -> tuple:
+    """Apply bias correction before sending signal."""
+    try:
+        from agents.bias_detector import apply_bias_correction
+        return apply_bias_correction(pair, decision, confidence)
+    except Exception as e:
+        return confidence, ""

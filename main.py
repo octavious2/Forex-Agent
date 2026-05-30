@@ -58,6 +58,13 @@ if __name__ == "__main__":
         max_instances=1,
     )
 
+    # Weekly bias report — every Sunday 20:00 UTC
+    scheduler.add_job(
+        weekly_bias_report,
+        trigger=CronTrigger(hour=20, minute=0, day_of_week="sun"),
+        id="bias_report",
+    )
+
     # Daily heartbeat — 08:00 UTC
     scheduler.add_job(
         daily_heartbeat,
@@ -76,3 +83,8 @@ if __name__ == "__main__":
         scheduler.start()
     except Exception as e:
         print(f"Scheduler error: {e}")
+
+def weekly_bias_report():
+    """Every Sunday send a bias report to Discord."""
+    from agents.bias_detector import report_bias
+    report_bias()
