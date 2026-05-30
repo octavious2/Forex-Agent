@@ -168,3 +168,21 @@ if __name__ == "__main__":
         "risk_note": "No high-impact GBP news for next 4 hours ✅"
     }
     send_signal(test_signal)
+
+def send_status_update(message: str, color: int = 0x5865F2):
+    """Send a simple status message to Discord."""
+    import requests as _req
+    import os as _os
+    webhook = _os.getenv("DISCORD_WEBHOOK_URL")
+    if not webhook:
+        return
+    try:
+        _req.post(webhook, json={
+            "embeds": [{
+                "description": message,
+                "color": color,
+                "footer": {"text": f"Forex Agent • {__import__('datetime').datetime.now(__import__('datetime').timezone.utc).strftime('%H:%M UTC')}"}
+            }]
+        }, timeout=5)
+    except:
+        pass
