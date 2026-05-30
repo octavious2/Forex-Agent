@@ -33,6 +33,15 @@ def run_once():
         return
 
     session      = get_session()
+
+    # London open trap window: 07:00-08:00 UTC is the highest manipulation period
+    # Banks fake breakouts to collect liquidity before the real move
+    # Require the first 45 minutes to pass before trusting London signals
+    from datetime import datetime, timezone
+    utc_now = datetime.now(timezone.utc)
+    if utc_now.hour == 7 and utc_now.minute < 45:
+        print(f"  ⏸ London open trap window — waiting until 07:45 UTC for manipulation to clear")
+        return
     now          = datetime.now(timezone.utc).strftime("%H:%M UTC")
     scan_results = []   # collects what happened this scan for memory journal
 
@@ -212,3 +221,32 @@ def _apply_bias_correction(pair: str, decision: str, confidence: int) -> tuple:
         return apply_bias_correction(pair, decision, confidence)
     except Exception as e:
         return confidence, ""
+
+# Correlation map — pairs that move together
+CORRELATED = {
+    "EURUSD": ["GBPUSD", "AUDUSD"],
+    "GBPUSD": ["EURUSD", "GBPJPY"],
+    "GBPJPY": ["GBPUSD"],
+    "AUDUSD": ["EURUSD"],
+    "USDJPY": ["GBPJPY"],
+}
+
+def _has_correlated_active(pair: str, direction: str) -> bool:
+    """
+    Returns True if a correlated pair already has an active signal
+    in the SAME direction — prevents double exposure.
+    """
+    related = CORRELATED.get(pair, [])
+    if not related:
+        return False
+    try:
+        from database.signal_log import get_pending_signals
+        pending = get_pending_signals()
+        for sig in pending:
+            if sig["pair"] in related and sig["direction"] == direction:
+                print(f"  ⚠ Correlation block: {pair} {direction} "
+                      f"correlates with active {sig['pair']} {sig['direction']}")
+                return True
+    except:
+        pass
+    return False

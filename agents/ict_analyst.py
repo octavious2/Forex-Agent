@@ -45,6 +45,8 @@ Recent price action:
 {candles_1h}
 {candles_15m}
 
+IMPORTANT: Deprioritise order blocks and FVGs that are at round numbers, previous week highs/lows, or levels visible on higher timeframes than 4H. These are the levels institutions know retail traders are watching and they use them to trap entries. Prefer less obvious but technically valid levels.
+
 Identify and respond ONLY with valid JSON (no markdown, no explanation outside JSON):
 
 {{

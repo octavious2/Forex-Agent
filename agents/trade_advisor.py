@@ -166,3 +166,12 @@ if __name__ == "__main__":
     ict    = ict_analyse("GBPUSD", tech)
     result = advise("GBPUSD", tech, ict, get_session())
     print(json.dumps(result, indent=2, default=str))
+
+# This prompt addition goes into the trade advisor context
+STOP_HUNT_REMINDER = """
+CRITICAL: When placing stop loss levels, do NOT place them AT the obvious
+structural level. Place them 3-5 pips BEYOND it for forex pairs, 15-20 pips
+for Gold. Example: if support is at 1.1640, set SL at 1.1634, not 1.1640.
+Institutions specifically target stops placed at round numbers and obvious
+technical levels. A stop at 1.1640 will be hunted. A stop at 1.1634 will not.
+"""

@@ -32,10 +32,10 @@ def analyse(pair: str) -> dict:
     calendar    = _get_economic_calendar(base, quote)
     now_utc     = datetime.now(timezone.utc)
 
-    # Check for imminent high-impact events (within 60 minutes)
+    # Block for 60 min BEFORE and 120 min AFTER high-impact events
     imminent = [e for e in calendar
                 if e.get("impact") == "High"
-                and -15 <= e.get("mins_away", 999) <= 60]
+                and -120 <= e.get("mins_away", 999) <= 60]
 
     if imminent:
         event = imminent[0]

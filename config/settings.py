@@ -53,3 +53,14 @@ SESSIONS = {
 # Fast small model for low-criticality tasks (fundamental, memory journal)
 # Uses ~80% fewer tokens than Llama 70B
 LLAMA_SMALL = "llama-3.1-8b-instant"
+
+# Minimum ATR thresholds — if market volatility is below these
+# the pair is chopping and signals are unreliable
+MIN_ATR = {
+    "EURUSD": 0.0008,   # 8 pips minimum hourly range
+    "GBPUSD": 0.0010,   # 10 pips
+    "USDJPY": 0.08,     # 8 pips (JPY scale)
+    "XAUUSD": 1.5,      # $1.50 Gold minimum
+    "GBPJPY": 0.12,     # 12 pips
+    "AUDUSD": 0.0007,   # 7 pips
+}
