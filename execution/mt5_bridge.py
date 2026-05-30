@@ -19,6 +19,7 @@ SYMBOL_MAP = {
     "EURUSD": "EURUSD", "GBPUSD": "GBPUSD",
     "USDJPY": "USDJPY", "GBPJPY": "GBPJPY",
     "AUDUSD": "AUDUSD", "XAUUSD": "XAUUSD",
+    "BTCUSD": "BTCUSD",
 }
 
 def send_trade(signal: dict, lot_size: float = 0.01) -> dict:

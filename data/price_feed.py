@@ -13,9 +13,8 @@ VALID_PAIRS = {
     "EURUSD": "EUR/USD",
     "GBPUSD": "GBP/USD",
     "USDJPY": "USD/JPY",
-    "GBPJPY": "GBP/JPY",
-    "AUDUSD": "AUD/USD",
     "XAUUSD": "XAU/USD",
+    "BTCUSD": "BTC/USD",
 }
 
 # Simple in-memory cache — stores candles per (pair, timeframe)
@@ -121,5 +120,7 @@ def pip_value(pair: str) -> float:
         return 0.01
     elif pair == "XAUUSD":
         return 0.1
+    elif pair == "BTCUSD":
+        return 1.0   # $1 per unit for BTC
     else:
         return 0.0001
