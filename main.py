@@ -7,6 +7,7 @@ from database.signal_log import init_db
 from agents.memory import init_memory_db
 from agents.orchestrator import run_once, daily_heartbeat
 from agents.outcome_tracker import check_outcomes, expire_old_signals
+from agents.bias_detector import report_bias as weekly_bias_report
 from agents.signal_monitor import monitor_all
 from config.settings import SCAN_INTERVAL_MIN
 

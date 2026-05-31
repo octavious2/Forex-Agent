@@ -22,14 +22,18 @@ def run_once():
     weekday = now.weekday()  # 0=Monday, 5=Saturday, 6=Sunday
     hour    = now.hour
 
-    if weekday == 5:  # Saturday — fully closed
-        print(f"\n💤 Saturday — forex market closed. Next scan Sunday 22:00 UTC.")
+    if weekday == 5:  # Saturday — forex closed, run BTC instead
+        print(f"\n₿  Saturday — forex closed. Running BTC/USD weekend scan...")
+        from agents.weekend_btc import run_btc_scan
+        run_btc_scan()
         return
-    if weekday == 6 and hour < 22:  # Sunday before 22:00 UTC
-        print(f"\n💤 Sunday — market opens at 22:00 UTC ({22 - hour}h remaining).")
+    if weekday == 6 and hour < 22:  # Sunday before 22:00 UTC — BTC mode
+        print(f"\n₿  Sunday — forex opens 22:00 UTC. Running BTC weekend scan...")
+        from agents.weekend_btc import run_btc_scan
+        run_btc_scan()
         return
-    if weekday == 4 and hour >= 22:  # Friday after 22:00 UTC
-        print(f"\n💤 Friday close — market closed until Sunday 22:00 UTC.")
+    if weekday == 4 and hour >= 16:  # Friday after 16:00 UTC
+        print(f"\n💤 Friday afternoon — avoiding weekend gap risk.")
         return
 
     session      = get_session()

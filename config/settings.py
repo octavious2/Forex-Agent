@@ -21,14 +21,11 @@ LLAMA_MODEL       = "llama-3.3-70b-versatile"
 
 # ── Pairs ─────────────────────────────────────────────────────────────
 PAIRS = [
-    "EURUSD",  # cleanest structure
-    "GBPUSD",  # best for ICT
-    "USDJPY",  # risk/yield dynamics
-    "XAUUSD",  # gold — best RR
-    "GBPJPY",  # high volatility
-    "AUDUSD",  # commodity-linked
+    "EURUSD",  # cleanest structure, tightest spreads
+    "GBPUSD",  # best ICT pair, clear institutional moves
+    "USDJPY",  # risk/yield driver, genuine diversification
+    "XAUUSD",  # Gold — best performer, high pip potential
 ]
-
 # ── Timeframes ────────────────────────────────────────────────────────
 TF_TREND  = "4h"    # higher timeframe bias
 TF_ENTRY  = "1h"    # structure and setup

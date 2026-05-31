@@ -86,7 +86,7 @@ Respond ONLY with valid JSON:
   "rr_ratio": <float>,
   "pips_to_sl": <number>,
   "pips_to_tp1": <number>,
-  "setup_type": "order_block / fvg / liquidity_sweep / structure_break / confluence",
+  "setup_type": "order_block / fvg / liquidity_sweep",
   "session_quality": "excellent / good / fair / poor",
   "reasoning": {{
     "why_enter": "2-3 sentence explanation of why this setup is valid",
@@ -98,6 +98,9 @@ Respond ONLY with valid JSON:
 }}
 
 Rules:
+- setup_type MUST be one of: order_block, fvg, liquidity_sweep ONLY
+- NEVER use structure_break (11% historical win rate) or confluence (unproven)
+- If the only available setup is a structure break, return WAIT
 - WAIT if confidence < {MIN_CONFIDENCE} or RR < {MIN_RR}
 - WAIT if 4H and 1H trends conflict with ICT bias
 - WAIT if in premium zone for BUYs or discount zone for SELLs
@@ -146,6 +149,27 @@ Rules:
             if "JPY" in pair: pip = 0.01
             elif pair == "XAUUSD": pip = 0.1
             result["entry_high"] = round(float(result["entry_low"]) + 5 * pip, 5)
+
+        # Ensure TP2 and TP3 are populated — extrapolate from TP1 and SL if null
+        try:
+            sl   = float(result.get("stop_loss") or 0)
+            tp1  = float(result.get("tp1") or 0)
+            entry = float(result.get("entry_high") or result.get("entry_low") or result.get("price") or 0)
+            if entry and tp1 and sl:
+                risk = abs(entry - sl)
+                direction = result.get("decision", "")
+                if not result.get("tp2"):
+                    if direction == "BUY":
+                        result["tp2"] = round(entry + risk * 3.0, 5)
+                    else:
+                        result["tp2"] = round(entry - risk * 3.0, 5)
+                if not result.get("tp3"):
+                    if direction == "BUY":
+                        result["tp3"] = round(entry + risk * 4.5, 5)
+                    else:
+                        result["tp3"] = round(entry - risk * 4.5, 5)
+        except Exception:
+            pass
 
         return result
 
