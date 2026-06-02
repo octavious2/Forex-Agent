@@ -97,8 +97,11 @@ def run_once():
             signal["ict_bias"] = ict_bias
 
             decision   = signal.get("decision", "WAIT")
-            confidence = signal.get("confidence", 0)
-            rr         = float(signal.get("rr_ratio") or 0)
+            confidence = int(float(signal.get("confidence", 0) or 0)) if str(signal.get("confidence", 0)).replace(".","").isdigit() else 0
+            try:
+                rr = float(signal.get("rr_ratio") or 0)
+            except (ValueError, TypeError):
+                rr = 0.0
 
             # HTF alignment check
             if not _htf_allows(trend_4h, trend_1h, ict_bias, decision):

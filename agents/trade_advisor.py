@@ -150,6 +150,26 @@ Rules:
             elif pair == "XAUUSD": pip = 0.1
             result["entry_high"] = round(float(result["entry_low"]) + 5 * pip, 5)
 
+        # Validate TP1 is far enough from entry — reject signals where TP1 is too close
+        # Minimum distance prevents broker rejection (error 4756) and unprofitable trades
+        try:
+            entry_chk = float(result.get("entry_low") or result.get("entry_high") or result.get("price") or 0)
+            tp1_chk   = float(result.get("tp1") or 0)
+            pip_sz    = 0.0001
+            if "JPY" in pair: pip_sz = 0.01
+            elif pair == "XAUUSD": pip_sz = 0.1
+            elif pair == "BTCUSD": pip_sz = 1.0
+            min_tp_pips = 10 if pair not in ("XAUUSD","BTCUSD") else 20
+            if entry_chk and tp1_chk:
+                tp1_dist = abs(tp1_chk - entry_chk) / pip_sz
+                if tp1_dist < min_tp_pips:
+                    print(f"[trade_advisor] {pair} TP1 only {tp1_dist:.1f} pips from entry "
+                          f"(need {min_tp_pips}) — converting to WAIT")
+                    result["decision"] = "WAIT"
+                    result["reasoning"] = result.get("reasoning", {})
+        except Exception:
+            pass
+
         # Ensure TP2 and TP3 are populated — extrapolate from TP1 and SL if null
         try:
             sl   = float(result.get("stop_loss") or 0)
