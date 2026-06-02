@@ -93,7 +93,7 @@ def validate_trade(signal: dict, account_balance: float,
 # Set this to simulate a small account regardless of actual demo balance.
 # Your MT5 demo may have thousands — this caps position sizing to test
 # the $10 strategy realistically. Set to None to use real balance.
-SIMULATED_BALANCE = 10.0
+SIMULATED_BALANCE = None   # uses real MT5 balance; set to 10.0 when testing small account
 
 def get_account_balance() -> float:
     """
