@@ -444,24 +444,37 @@ def _send_warning(sig, price, analysis):
     }]})
 
 def _send_status(sig, price, to_entry, to_tp1, to_sl, progress):
-    in_trade  = to_entry == 0
     direction = sig["direction"]
-    emoji     = "🟢" if direction == "BUY" else "🔴"
+    emoji     = "\U0001F7E2" if direction == "BUY" else "\U0001F534"
 
-    if in_trade:
-        title  = f"📊 UPDATE — {sig['pair']} {direction} in progress"
-        status = f"Trade running • {progress} of the way to TP1"
+    live_profit = None
+    filled = False
+    try:
+        from execution.mt5_bridge import get_open_positions
+        for pos in get_open_positions():
+            if pos.get("symbol") == sig["pair"]:
+                filled = True
+                live_profit = float(pos.get("profit", 0))
+                break
+    except:
+        pass
+
+    if filled:
+        pl_state = "\U0001F7E2 WINNING" if (live_profit or 0) > 0 else "\U0001F534 LOSING"
+        pl_str   = f"${live_profit:+.2f}" if live_profit is not None else "-"
+        title  = f"\U0001F4CA {sig['pair']} {direction} - {pl_state}"
+        status = f"Live P&L: **{pl_str}**"
         fields = [
-            {"name": "Current Price", "value": f"`{price}`",          "inline": True},
-            {"name": "Entry",         "value": f"`{sig['entry']}`",   "inline": True},
-            {"name": "Progress",      "value": f"`{progress}`",       "inline": True},
-            {"name": "To TP1",        "value": f"`{to_tp1:.1f} pips`","inline": True},
-            {"name": "To SL",         "value": f"`{to_sl:.1f} pips`", "inline": True},
+            {"name": "Current Price", "value": f"`{price}`",            "inline": True},
+            {"name": "Live P&L",      "value": f"`{pl_str}`",           "inline": True},
+            {"name": "Status",        "value": f"`{pl_state}`",         "inline": True},
+            {"name": "To TP1",        "value": f"`{to_tp1:.1f} pips`",  "inline": True},
+            {"name": "To SL",         "value": f"`{to_sl:.1f} pips`",   "inline": True},
             {"name": "Direction",     "value": f"{emoji} `{direction}`","inline": True},
         ]
     else:
-        title  = f"⏳ WAITING — {sig['pair']} {direction} pending"
-        status = f"Order not filled yet"
+        title  = f"\u23F3 WAITING - {sig['pair']} {direction} pending"
+        status = f"Order not filled yet - {to_entry:.1f} pips from entry"
         fields = [
             {"name": "Current Price", "value": f"`{price}`",            "inline": True},
             {"name": "Entry Zone",    "value": f"`{sig['entry']}`",     "inline": True},
