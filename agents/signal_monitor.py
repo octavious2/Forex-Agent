@@ -101,6 +101,50 @@ def _early_breakeven_check():
     except Exception as e:
         pass
 
+def _position_status(pair, direction, entry, price, sl, tp1, pip):
+    """
+    Returns a clear, direction-aware status string.
+    Tells the trader if the trade is WINNING or LOSING right now,
+    not just raw distance to a target.
+    """
+    # Check if this signal has actually filled in MT5
+    filled = False
+    live_profit = None
+    try:
+        from execution.mt5_bridge import get_open_positions
+        for pos in get_open_positions():
+            if pos.get("symbol") == pair:
+                filled = True
+                live_profit = float(pos.get("profit", 0))
+                break
+    except:
+        pass
+
+    if not filled:
+        # Limit order not yet filled — report distance to entry
+        if direction == "BUY":
+            dist = (entry - price) / pip
+        else:
+            dist = (price - entry) / pip
+        if dist > 0:
+            return f"⏳ waiting to fill — {abs(dist):.1f} pips from entry"
+        else:
+            return f"⏳ at entry zone — should fill soon"
+
+    # Position is filled — report real profit/loss direction
+    if direction == "BUY":
+        winning = price > entry
+        to_tp1  = (tp1 - price) / pip
+        to_sl   = (price - sl) / pip
+    else:
+        winning = price < entry
+        to_tp1  = (price - tp1) / pip
+        to_sl   = (sl - price) / pip
+
+    state = "🟢 WINNING" if winning else "🔴 LOSING"
+    profit_str = f" (${live_profit:+.2f})" if live_profit is not None else ""
+    return f"{state}{profit_str} — {to_tp1:.1f} pips to TP1, {to_sl:.1f} pips to SL"
+
 def _check_signal(sig: dict):
     pair      = sig["pair"]
     direction = sig["direction"]
@@ -221,9 +265,8 @@ def _check_signal(sig: dict):
         _last_notified[sig_id] = {
             **last, "status_time": datetime.now(timezone.utc).isoformat()
         }
-        print(f"  📊 {pair} status: price={price}, "
-              f"{'to entry' if pips_to_entry > 0 else 'to TP1'}="
-              f"{pips_to_entry if pips_to_entry > 0 else pips_to_tp1:.1f} pips")
+        status_msg = _position_status(pair, direction, entry, price, sl, tp1, pip)
+        print(f"  📊 {pair}: {status_msg}")
 
 def _estimate_eta(pair: str, direction: str,
                   current_price: float, target: float) -> str:

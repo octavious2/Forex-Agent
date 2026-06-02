@@ -90,11 +90,19 @@ def validate_trade(signal: dict, account_balance: float,
 
     return True, "OK"
 
+# Set this to simulate a small account regardless of actual demo balance.
+# Your MT5 demo may have thousands — this caps position sizing to test
+# the $10 strategy realistically. Set to None to use real balance.
+SIMULATED_BALANCE = 10.0
+
 def get_account_balance() -> float:
     """
     Read live account balance from MT5 status file.
+    If SIMULATED_BALANCE is set, returns that instead (for small-account testing).
     Falls back to $10 if unavailable.
     """
+    if SIMULATED_BALANCE is not None:
+        return SIMULATED_BALANCE
     try:
         import json
         from pathlib import Path
