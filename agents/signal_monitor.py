@@ -58,6 +58,7 @@ def _save_notified(sig_id, state):
 def monitor_all():
     """Check all pending signals and send relevant updates."""
     _load_notified()
+    _early_breakeven_check()
     signals = get_pending_signals()
     if not signals:
         return
@@ -70,6 +71,35 @@ def monitor_all():
             _check_signal(sig)
         except Exception as e:
             print(f"  ⚠ Monitor error {sig['pair']}: {e}")
+
+def _early_breakeven_check():
+    """
+    For small accounts: move SL to breakeven on any position that reaches
+    2% of account profit, locking in gains before TP1. Especially important
+    for Gold's large swings. Reads live profit from MT5 status file.
+    """
+    try:
+        from execution.mt5_bridge import get_open_positions
+        from agents.risk_manager import get_account_balance, should_move_breakeven
+        from notifications.discord import send_status_update
+        balance   = get_account_balance()
+        positions = get_open_positions()
+        for pos in positions:
+            profit = float(pos.get("profit", 0))
+            symbol = pos.get("symbol", "")
+            if should_move_breakeven(symbol, profit, balance):
+                # Notify — the EA could later auto-modify, for now alert the trader
+                threshold = balance * 0.02
+                send_status_update(
+                    f"🔒 **{symbol} +${profit:.2f}** (>2% of account)\n"
+                    f"Move your stop loss to breakeven NOW to lock this in.\n"
+                    f"On a small account, protecting ${profit:.2f} matters more "
+                    f"than chasing the full target.",
+                    color=0xFFAA00
+                )
+                print(f"  🔒 {symbol} +${profit:.2f} — breakeven alert sent")
+    except Exception as e:
+        pass
 
 def _check_signal(sig: dict):
     pair      = sig["pair"]

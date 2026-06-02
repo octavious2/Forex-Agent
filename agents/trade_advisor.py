@@ -170,6 +170,34 @@ Rules:
         except Exception:
             pass
 
+        # Gold-specific: cap TP1 distance for small accounts
+        # Gold's big swings mean a far TP1 leaves profit unrealized too long
+        try:
+            if pair == "XAUUSD":
+                entry_g = float(result.get("entry_low") or result.get("entry_high") or result.get("price") or 0)
+                sl_g    = float(result.get("stop_loss") or 0)
+                tp1_g   = float(result.get("tp1") or 0)
+                direction_g = result.get("decision", "")
+                if entry_g and tp1_g:
+                    tp1_dist = abs(tp1_g - entry_g) / 0.1  # in $ (pips for gold)
+                    # Cap TP1 at 30 pips ($3 on 0.01 lot) for quick realisation
+                    if tp1_dist > 35:
+                        if direction_g == "BUY":
+                            result["tp1"] = round(entry_g + 25 * 0.1, 2)
+                        elif direction_g == "SELL":
+                            result["tp1"] = round(entry_g - 25 * 0.1, 2)
+                        print(f"[trade_advisor] Gold TP1 capped to 25 pips for small-account realisation")
+                    # Also tighten SL if wider than 30 pips
+                    sl_dist = abs(entry_g - sl_g) / 0.1
+                    if sl_dist > 35:
+                        if direction_g == "BUY":
+                            result["stop_loss"] = round(entry_g - 30 * 0.1, 2)
+                        elif direction_g == "SELL":
+                            result["stop_loss"] = round(entry_g + 30 * 0.1, 2)
+                        print(f"[trade_advisor] Gold SL capped to 30 pips")
+        except Exception:
+            pass
+
         # Ensure TP2 and TP3 are populated — extrapolate from TP1 and SL if null
         try:
             sl   = float(result.get("stop_loss") or 0)

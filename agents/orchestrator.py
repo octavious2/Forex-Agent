@@ -8,6 +8,7 @@ from agents.ict_analyst import analyse as ict_analyse
 from agents.fundamental import analyse as fundamental_analyse
 from agents.trade_advisor import advise
 from database.signal_log import log_signal, has_active_signal
+from agents.risk_manager import calculate_lot_size, get_account_balance, should_move_breakeven
 from notifications.discord import send_signal, send_heartbeat
 
 _signals_sent  = 0
@@ -200,7 +201,13 @@ def _execute_on_mt5(signal: dict, session: str, signal_id: int = 0):
             return
         # Use 0.01 lot for demo testing
         signal["id"] = signal_id
-        result = send_trade(signal, lot_size=0.01)
+        # Size the position from live account balance and 1% risk
+        balance = get_account_balance()
+        entry   = float(signal.get("entry_low") or signal.get("entry_high") or signal.get("price") or 0)
+        sl      = float(signal.get("stop_loss") or 0)
+        lot     = calculate_lot_size(balance, entry, sl, signal["pair"])
+        print(f"  💰 Account ${balance:.2f} → lot {lot} (1% risk)")
+        result = send_trade(signal, lot_size=lot)
         status = result.get("status", "unknown")
         ticket = result.get("ticket", 0)
         if status == "executed":
