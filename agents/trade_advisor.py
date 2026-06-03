@@ -11,7 +11,14 @@ from agents.memory import get_recent_narrative, get_pair_context, get_performanc
 client = Groq(api_key=GROQ_API_KEY)
 
 def advise(pair: str, tech: dict, ict: dict,
-           session: str, account_balance: float = 10.0) -> dict:
+           session: str, account_balance: float = None) -> dict:
+    # Pull real account balance if not explicitly provided
+    if account_balance is None:
+        try:
+            from agents.risk_manager import get_account_balance
+            account_balance = get_account_balance()
+        except:
+            account_balance = 10.0
     """
     Final synthesis. Returns trade recommendation or WAIT.
     """

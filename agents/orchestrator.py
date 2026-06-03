@@ -14,6 +14,12 @@ from notifications.discord import send_signal, send_heartbeat
 _signals_sent  = 0
 _pairs_scanned = 0
 
+# Rotating index so each cycle analyses ONE pair deeply instead of rushing all
+_pair_rotation_index = 0
+
+# Raised confidence bar — only act on genuinely strong setups
+DEEP_MIN_CONFIDENCE = 75   # was 65 — fewer, higher-quality trades
+
 def run_once():
     global _signals_sent, _pairs_scanned
 
@@ -36,6 +42,21 @@ def run_once():
     if weekday == 4 and hour >= 16:  # Friday after 16:00 UTC
         print(f"\n💤 Friday afternoon — avoiding weekend gap risk.")
         return
+
+    # EA health check — alert if MT5 EA has stopped writing
+    try:
+        from execution.mt5_bridge import check_mt5_running
+        from notifications.discord import send_status_update
+        if not check_mt5_running():
+            send_status_update(
+                "⚠️ **MT5 EA not responding** — trades are NOT being executed.\n"
+                "Check that MetaTrader 5 is open, the chart with LifeTapEA is active, "
+                "and Algo Trading is enabled (green button).",
+                color=0xFF0000
+            )
+            print("  ⚠ MT5 EA STOPPED — execution paused, Discord alerted")
+    except:
+        pass
 
     session      = get_session()
 
@@ -127,8 +148,9 @@ def run_once():
                 "setup_type": signal.get("setup_type", ""),
             })
 
+            # Higher bar in deep mode — only genuinely strong setups pass
             if (decision in ["BUY", "SELL"]
-                    and confidence >= MIN_CONFIDENCE
+                    and confidence >= DEEP_MIN_CONFIDENCE
                     and rr >= MIN_RR):
 
                 signal_id = log_signal({

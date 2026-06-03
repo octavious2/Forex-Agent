@@ -25,6 +25,7 @@ PAIRS = [
     "GBPUSD",  # best ICT pair, clear institutional moves
     "USDJPY",  # risk/yield driver, genuine diversification
     "XAUUSD",  # Gold — best performer, high pip potential
+    "BTCUSD",  # crypto — trades 24/7, weekday and weekend
 ]
 # ── Timeframes ────────────────────────────────────────────────────────
 TF_TREND  = "4h"    # higher timeframe bias
