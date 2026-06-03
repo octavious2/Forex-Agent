@@ -254,3 +254,82 @@ for Gold. Example: if support is at 1.1640, set SL at 1.1634, not 1.1640.
 Institutions specifically target stops placed at round numbers and obvious
 technical levels. A stop at 1.1640 will be hunted. A stop at 1.1634 will not.
 """
+
+
+def deep_verify(pair, signal, tech, ict):
+    """
+    Skeptical second-opinion pass before committing a trade.
+    Hard gates first (non-negotiable), then an AI risk-manager review
+    that actively looks for reasons NOT to trade.
+    Returns (approved: bool, reason: str).
+    """
+    # ---- HARD GATES (no AI, cannot be overridden) ----
+    try:
+        conf = int(float(signal.get("confidence", 0) or 0))
+    except (ValueError, TypeError):
+        conf = 0
+    try:
+        rr = float(signal.get("rr_ratio", 0) or 0)
+    except (ValueError, TypeError):
+        rr = 0.0
+    entry = signal.get("entry_low") or signal.get("entry_high")
+    sl    = signal.get("stop_loss")
+    tp1   = signal.get("tp1")
+    decision = signal.get("decision", "WAIT")
+
+    if decision not in ("BUY", "SELL"):
+        return False, "not a directional signal"
+    if conf < 75:
+        return False, f"confidence {conf} below 75"
+    if rr < 1.5:
+        return False, f"RR {rr} below 1.5"
+    if not (entry and sl and tp1):
+        return False, "missing entry/SL/TP1"
+    if signal.get("setup_type") in ("structure_break", "confluence"):
+        return False, f"weak setup type {signal.get('setup_type')}"
+
+    # ---- AI SKEPTICAL REVIEW ----
+    prompt = f"""You are a skeptical senior risk manager reviewing a proposed trade.
+Be critical. Your job is to find genuine reasons NOT to take it.
+
+Proposed: {decision} {pair}
+Entry: {entry}  Stop: {sl}  TP1: {tp1}
+Confidence: {conf}  Risk:Reward: {rr}
+Setup type: {signal.get('setup_type')}
+4H trend: {tech.get('trend_4h')}  1H trend: {tech.get('trend_1h')}
+ICT bias: {ict.get('ict_bias')}
+Reasoning given: {json.dumps(signal.get('reasoning', {}))[:500]}
+
+Check for red flags: chasing price far from value, counter-trend entry,
+weak or vague structure, entry too close to stop, trading into resistance/support.
+If the setup is genuinely strong with good location, approve it.
+If there are real red flags, reject it.
+
+Respond ONLY with JSON: {{"verdict": "approve" or "reject", "concern": "one short sentence"}}"""
+
+    try:
+        try:
+            response = client.chat.completions.create(
+                model=LLAMA_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2, max_tokens=200,
+            )
+        except Exception as rate_err:
+            if "429" in str(rate_err) or "rate_limit" in str(rate_err).lower():
+                response = client.chat.completions.create(
+                    model=LLAMA_SMALL,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.2, max_tokens=200,
+                )
+            else:
+                raise
+        raw = response.choices[0].message.content.strip()
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        verdict = json.loads(raw)
+        if verdict.get("verdict") == "approve":
+            return True, "passed deep verification"
+        else:
+            return False, "AI veto: " + verdict.get("concern", "setup not strong enough")
+    except Exception as e:
+        # If the review fails to parse, fall back to hard gates only (already passed)
+        return True, "verified on hard gates (AI review unparseable)"

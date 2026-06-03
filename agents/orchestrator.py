@@ -75,120 +75,122 @@ def run_once():
     print(f"🔍 Scanning {len(PAIRS)} pairs | {now} | {session.upper()}")
     print(f"{'='*50}")
 
-    # Deep mode: ONE pair per cycle, rotating through the list
-    global _pair_rotation_index
-    selected_pair = PAIRS[_pair_rotation_index % len(PAIRS)]
-    _pair_rotation_index = (_pair_rotation_index + 1) % len(PAIRS)
-    print(f"\n>>> Deep analysis this cycle: {selected_pair}")
+    # ═══════════════════════════════════════════════════════════════
+    # AGENTIC LOOP: survey all pairs → screen → rank → verify best 2 → trade
+    # ═══════════════════════════════════════════════════════════════
+    print(f"\n🔍 Surveying {len(PAIRS)} pairs | {now} | {session.upper()}")
+    print(f"{'='*50}")
 
-    for pair in [selected_pair]:
+    candidates = []   # pairs that pass the basic screen
 
-        # Skip pairs with active signals
+    for pair in PAIRS:
+        # Skip pairs that already have an active position/signal
         if has_active_signal(pair, hours=6):
-            print(f"→ {pair} — ⏭  skipping (active signal < 6h)")
+            print(f"→ {pair}: ⏭  already has active signal, skipping")
             continue
 
-        print(f"\n→ Analysing {pair}...")
+        print(f"\n→ Screening {pair}...")
         try:
-            # 1 — Technical
-            print(f"  [1/4] Technical...")
             tech = technical_analyse(pair)
             if "error" in tech:
-                print(f"  ⚠ {tech['error']}")
+                print(f"  ⚠ {tech['error']} — skipping")
                 continue
-
             trend_4h = tech.get("trend_4h", "unknown")
             trend_1h = tech.get("trend_1h", "unknown")
 
-            # 2 — ICT
-            print(f"  [2/4] ICT concepts...")
             ict = ict_analyse(pair, tech)
             if "error" in ict:
-                print(f"  ⚠ ICT: {ict.get('error','')[:60]}")
                 ict = {"ict_bias": "neutral", "best_setup": {},
                        "pair": pair, "market_structure": {}}
-
             ict_bias = ict.get("ict_bias", "neutral")
 
-            # 3 — Fundamentals
-            print(f"  [3/4] Fundamentals...")
             fund = fundamental_analyse(pair)
             if not fund.get("safe_to_trade", True):
-                print(f"  🚫 BLOCKED — {fund.get('avoid_reason','News event')}")
+                print(f"  🚫 {pair}: BLOCKED — {fund.get('avoid_reason','news')} — moving to next pair")
                 continue
 
-            # 4 — Trade Advisor
-            print(f"  [4/4] Trade Advisor...")
             signal = advise(pair, tech, ict, session)
             signal["session"]  = session
             signal["trend_4h"] = trend_4h
             signal["ict_bias"] = ict_bias
-
             decision   = signal.get("decision", "WAIT")
-            confidence = int(float(signal.get("confidence", 0) or 0)) if str(signal.get("confidence", 0)).replace(".","").isdigit() else 0
+            try:
+                confidence = int(float(signal.get("confidence", 0) or 0))
+            except (ValueError, TypeError):
+                confidence = 0
+            signal["confidence"] = confidence
             try:
                 rr = float(signal.get("rr_ratio") or 0)
             except (ValueError, TypeError):
                 rr = 0.0
 
-            # HTF alignment check
+            scan_results.append({
+                "pair": pair, "decision": decision, "confidence": confidence,
+                "rr_ratio": rr, "price": tech.get("current_price", 0),
+                "trend_4h": trend_4h, "trend_1h": trend_1h,
+                "ict_bias": ict_bias, "setup_type": signal.get("setup_type", ""),
+            })
+            _pairs_scanned += 1
+
+            # HTF alignment gate
             if not _htf_allows(trend_4h, trend_1h, ict_bias, decision):
-                print(f"  📊 {decision} | Conf: {confidence} | RR: 1:{rr}")
-                print(f"  🚫 HTF FILTERED — 4H={trend_4h} ICT={ict_bias} "
-                      f"conflicts with {decision}")
-                scan_results.append({**signal, "pair": pair, "filtered": True})
+                print(f"  📊 {decision} {confidence}/100 — 🚫 HTF conflict, not a candidate")
                 continue
 
-            print(f"  📊 {decision} | Confidence: {confidence}/100 | RR: 1:{rr}")
-
-            # Collect for journal regardless of outcome
-            scan_results.append({
-                "pair":       pair,
-                "decision":   decision,
-                "confidence": confidence,
-                "rr_ratio":   rr,
-                "price":      tech.get("current_price", 0),
-                "trend_4h":   trend_4h,
-                "trend_1h":   trend_1h,
-                "ict_bias":   ict_bias,
-                "setup_type": signal.get("setup_type", ""),
-            })
-
-            # Higher bar in deep mode — only genuinely strong setups pass
-            if (decision in ["BUY", "SELL"]
-                    and confidence >= DEEP_MIN_CONFIDENCE
-                    and rr >= MIN_RR):
-
-                signal_id = log_signal({
-                    "pair":       pair,
-                    "direction":  decision,
-                    "entry_low":  signal.get("entry_low"),
-                    "entry_high": signal.get("entry_high"),
-                    "stop_loss":  signal.get("stop_loss"),
-                    "tp1":        signal.get("tp1"),
-                    "tp2":        signal.get("tp2"),
-                    "tp3":        signal.get("tp3"),
-                    "confidence": confidence,
-                    "rr_ratio":   rr,
-                    "session":    session,
-                    "setup_type": signal.get("setup_type", "confluence"),
-                    "analysis":   json.dumps(signal.get("reasoning", {})),
+            # Basic screen — must clear the bar to become a candidate
+            if decision in ("BUY", "SELL") and confidence >= DEEP_MIN_CONFIDENCE and rr >= MIN_RR:
+                score = confidence * rr   # quality score for ranking
+                candidates.append({
+                    "pair": pair, "signal": signal, "tech": tech, "ict": ict,
+                    "confidence": confidence, "rr": rr, "score": score,
+                    "decision": decision,
                 })
-                send_signal(signal)
-                _execute_on_mt5(signal, session, signal_id)
-                _signals_sent += 1
-                print(f"  ✅ Signal sent to Discord! (ID: {signal_id})")
+                print(f"  ✅ {pair}: CANDIDATE — {decision} {confidence}/100 RR 1:{rr} (score {score:.0f})")
             else:
-                print(f"  ⏸  WAIT — conf={confidence} rr={rr} "
-                      f"(need ≥{DEEP_MIN_CONFIDENCE} / ≥{MIN_RR})")
+                print(f"  📊 {pair}: {decision} {confidence}/100 RR 1:{rr} — below bar, not a candidate")
 
-            _pairs_scanned += 1
-            time.sleep(3)
-
+            time.sleep(2)
         except Exception as e:
-            print(f"  ❌ {pair} failed: {e}")
-            import traceback; traceback.print_exc()
+            print(f"  ❌ {pair} screen failed: {e}")
             continue
+
+    # ── RANK and pick the best TWO candidates ──────────────────────────
+    candidates.sort(key=lambda c: c["score"], reverse=True)
+    top = candidates[:2]
+
+    if not top:
+        print(f"\n🤔 No qualifying setups across any pair this cycle. Waiting.")
+    else:
+        print(f"\n🎯 {len(candidates)} candidate(s) found. Deep-verifying top {len(top)}:")
+
+    from agents.trade_advisor import deep_verify
+    for cand in top:
+        pair   = cand["pair"]
+        signal = cand["signal"]
+        print(f"\n🔬 Deep-verifying {pair} ({cand['decision']} {cand['confidence']}/100)...")
+        approved, reason = deep_verify(pair, signal, cand["tech"], cand["ict"])
+        if not approved:
+            print(f"  🛑 {pair} VETOED — {reason}")
+            continue
+        print(f"  ✅ {pair} APPROVED — {reason}")
+
+        decision   = cand["decision"]
+        confidence = cand["confidence"]
+        rr         = cand["rr"]
+        signal_id = log_signal({
+            "pair": pair, "direction": decision,
+            "entry_low": signal.get("entry_low"), "entry_high": signal.get("entry_high"),
+            "stop_loss": signal.get("stop_loss"),
+            "tp1": signal.get("tp1"), "tp2": signal.get("tp2"), "tp3": signal.get("tp3"),
+            "confidence": confidence, "rr_ratio": rr, "session": session,
+            "setup_type": signal.get("setup_type", "order_block"),
+            "analysis": json.dumps(signal.get("reasoning", {})),
+        })
+        send_signal(signal)
+        _execute_on_mt5(signal, session, signal_id)
+        _signals_sent += 1
+        print(f"  ✅ Signal sent & executed (ID: {signal_id})")
+        time.sleep(2)
 
     # Write memory journal after every scan
     if scan_results:
