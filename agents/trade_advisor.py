@@ -300,23 +300,33 @@ chasing price far from value, or genuinely weak/vague structure. If sound, APPRO
 Respond ONLY with JSON: {{"verdict": "approve" or "reject", "concern": "one short sentence"}}"""
 
     try:
+        raw = None
+        # Smart reviewer first: Gemini 2.5 Flash (separate quota, strong reasoning)
         try:
-            response = client.chat.completions.create(
-                model=LLAMA_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2, max_tokens=200,
-            )
-        except Exception as rate_err:
-            if "429" in str(rate_err) or "rate_limit" in str(rate_err).lower():
+            raw = _gemini_verify(prompt)
+            print("  [deep_verify] reviewed by Gemini 2.5 Flash")
+        except Exception as gem_err:
+            print(f"  [deep_verify] Gemini unavailable ({str(gem_err)[:50]}) — falling back to Llama")
+            try:
+                response = client.chat.completions.create(
+                    model=LLAMA_MODEL,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.2, max_tokens=200,
+                )
+            except Exception as rate_err:
                 response = client.chat.completions.create(
                     model=LLAMA_SMALL,
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.2, max_tokens=200,
                 )
-            else:
-                raise
-        raw = response.choices[0].message.content.strip()
-        raw = raw.replace("```json", "").replace("```", "").strip()
+            raw = response.choices[0].message.content
+        raw = raw.strip().replace("```json", "").replace("```", "").strip()
+        # Robust JSON extraction
+        if not raw.startswith("{"):
+            s = raw.find("{")
+            e = raw.rfind("}")
+            if s >= 0 and e > s:
+                raw = raw[s:e+1]
         verdict = json.loads(raw)
         if verdict.get("verdict") == "approve":
             return True, "passed deep verification"
