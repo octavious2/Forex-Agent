@@ -238,8 +238,20 @@ def _execute_on_mt5(signal: dict, session: str, signal_id: int = 0):
         result = send_trade(signal, lot_size=lot)
         status = result.get("status", "unknown")
         ticket = result.get("ticket", 0)
-        if status == "executed":
-            print(f"  🤖 MT5 EXECUTED: ticket #{ticket}")
+
+        # Link this signal to its real MT5 ticket so outcomes track the
+        # actual position, not the theoretical price. Only filled/placed
+        # orders get a ticket; phantom price-touches never will.
+        if ticket and signal_id:
+            try:
+                from database.signal_log import set_ticket
+                set_ticket(signal_id, ticket)
+            except Exception as e:
+                print(f"  ⚠ could not store ticket: {e}")
+
+        if status in ("executed", "placed"):
+            label = "EXECUTED" if status == "executed" else "ORDER PLACED"
+            print(f"  🤖 MT5 {label}: ticket #{ticket}")
             from notifications.discord import send_discord
             send_discord({"embeds": [{
                 "title": f"🤖 MT5 DEMO EXECUTED — {signal['pair']} {signal.get('decision','')}",

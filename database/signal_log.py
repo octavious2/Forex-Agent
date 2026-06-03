@@ -162,7 +162,7 @@ def get_pending_signals() -> list:
     c    = conn.cursor()
     c.execute("""
         SELECT id, pair, direction, entry_high, entry_low, stop_loss,
-               tp1, tp2, tp3, created_at
+               tp1, tp2, tp3, created_at, mt5_ticket
         FROM signals WHERE outcome='PENDING'
         ORDER BY created_at DESC
     """)
@@ -175,6 +175,6 @@ def get_pending_signals() -> list:
             "id": r[0], "pair": r[1], "direction": r[2],
             "entry": best_entry, "entry_high": r[3], "entry_low": r[4],
             "sl": r[5], "tp1": r[6], "tp2": r[7], "tp3": r[8],
-            "created_at": r[9]
+            "created_at": r[9], "mt5_ticket": r[10] or 0
         })
     return result

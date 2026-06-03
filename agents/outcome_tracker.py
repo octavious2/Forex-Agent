@@ -28,6 +28,21 @@ from database.signal_log import get_pending_signals, update_outcome
 from notifications.discord import send_signal
 from datetime import datetime, timezone
 
+def _sane_pips(raw_pips, pair):
+    """Reject impossible pip values caused by null/zero entry prices."""
+    limits = {"XAUUSD": 5000, "BTCUSD": 50000}
+    cap = limits.get(pair, 1000)  # forex pairs never move 1000+ pips intraday
+    try:
+        v = float(raw_pips)
+    except (ValueError, TypeError):
+        return 0.0
+    if abs(v) > cap:
+        print(f"  ⚠ Rejected impossible pip value {v} for {pair} — entry was likely null")
+        return 0.0
+    return round(v, 1)
+
+
+
 def check_outcomes():
     """Check all pending signals against current prices."""
     pending = get_pending_signals()
@@ -60,30 +75,30 @@ def check_outcomes():
         if direction == "BUY":
             if price <= sl:
                 outcome = "LOSS"
-                pips    = round((sl - entry) / pip, 1)
+                pips    = _sane_pips((sl - entry) / pip, sig["pair"])
             elif tp3 and price >= tp3:
                 outcome = "WIN"; tp_hit = 3
-                pips    = round((tp3 - entry) / pip, 1)
+                pips    = _sane_pips((tp3 - entry) / pip, sig["pair"])
             elif tp2 and price >= tp2:
                 outcome = "WIN"; tp_hit = 2
-                pips    = round((tp2 - entry) / pip, 1)
+                pips    = _sane_pips((tp2 - entry) / pip, sig["pair"])
             elif tp1 and price >= tp1:
                 outcome = "WIN"; tp_hit = 1
-                pips    = round((tp1 - entry) / pip, 1)
+                pips    = _sane_pips((tp1 - entry) / pip, sig["pair"])
 
         elif direction == "SELL":
             if price >= sl:
                 outcome = "LOSS"
-                pips    = round((entry - sl) / pip, 1)
+                pips    = _sane_pips((entry - sl) / pip, sig["pair"])
             elif tp3 and price <= tp3:
                 outcome = "WIN"; tp_hit = 3
-                pips    = round((entry - tp3) / pip, 1)
+                pips    = _sane_pips((entry - tp3) / pip, sig["pair"])
             elif tp2 and price <= tp2:
                 outcome = "WIN"; tp_hit = 2
-                pips    = round((entry - tp2) / pip, 1)
+                pips    = _sane_pips((entry - tp2) / pip, sig["pair"])
             elif tp1 and price <= tp1:
                 outcome = "WIN"; tp_hit = 1
-                pips    = round((entry - tp1) / pip, 1)
+                pips    = _sane_pips((entry - tp1) / pip, sig["pair"])
 
         if outcome:
             update_outcome(sig["id"], outcome, tp_hit, pips)
