@@ -4,7 +4,7 @@ Synthesises all agent outputs into a final trade recommendation.
 """
 import json
 from groq import Groq
-from config.settings import GROQ_API_KEY, LLAMA_MODEL, LLAMA_SMALL, MIN_CONFIDENCE, MIN_RR
+from config.settings import GROQ_API_KEY, LLAMA_MODEL, LLAMA_SMALL, MIN_CONFIDENCE, MIN_RR, GEMINI_API_KEY
 from database.signal_log import get_performance_summary
 from agents.memory import get_recent_narrative, get_pair_context, get_performance_context
 
@@ -236,6 +236,14 @@ for Gold. Example: if support is at 1.1640, set SL at 1.1634, not 1.1640.
 Institutions specifically target stops placed at round numbers and obvious
 technical levels. A stop at 1.1640 will be hunted. A stop at 1.1634 will not.
 """
+
+
+def _gemini_verify(prompt):
+    """Run the skeptical review on Gemini 2.5 Flash (smart, separate quota)."""
+    from google import genai
+    gclient = genai.Client(api_key=GEMINI_API_KEY)
+    r = gclient.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+    return r.text
 
 
 def deep_verify(pair, signal, tech, ict):
