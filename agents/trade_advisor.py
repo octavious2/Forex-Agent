@@ -104,6 +104,15 @@ Respond ONLY with valid JSON:
   "risk_note": "any warnings — high impact news, spread, session"
 }}
 
+CONFIDENCE SCORING — be honest and specific, do NOT default to 80:
+- 90-100: textbook setup, 4H + 1H + ICT all align, clean structure, ideal entry location
+- 75-89:  strong setup, most factors align, only minor caveats
+- 60-74:  moderate, mixed signals or some timeframe conflict
+- 40-59:  weak, conflicting signals or poor location
+- 0-39:   no real setup, stay out
+Most genuine setups fall in 55-78. A score of 85+ should be rare and earned.
+Vary your score based on how many factors truly align — avoid round defaults.
+
 Rules:
 - setup_type MUST be one of: order_block, fvg, liquidity_sweep ONLY
 - NEVER use structure_break (11% historical win rate) or confluence (unproven)
@@ -279,8 +288,8 @@ def deep_verify(pair, signal, tech, ict):
 
     if decision not in ("BUY", "SELL"):
         return False, "not a directional signal"
-    if conf < 75:
-        return False, f"confidence {conf} below 75"
+    if conf < 70:
+        return False, f"confidence {conf} below 70"
     if rr < 1.5:
         return False, f"RR {rr} below 1.5"
     if not (entry and sl and tp1):
@@ -288,22 +297,32 @@ def deep_verify(pair, signal, tech, ict):
     if signal.get("setup_type") in ("structure_break", "confluence"):
         return False, f"weak setup type {signal.get('setup_type')}"
 
+    # Compute REAL pip distances so the reviewer judges on numbers, not guesses
+    _pip = 0.0001
+    if "JPY" in pair: _pip = 0.01
+    elif pair == "XAUUSD": _pip = 0.1
+    elif pair == "BTCUSD": _pip = 1.0
+    try:
+        pips_to_sl  = abs(float(entry) - float(sl)) / _pip
+        pips_to_tp1 = abs(float(tp1) - float(entry)) / _pip
+    except (ValueError, TypeError):
+        pips_to_sl = pips_to_tp1 = 0
+
     # ---- AI SKEPTICAL REVIEW ----
     prompt = f"""You are a skeptical senior risk manager reviewing a proposed trade.
-Be critical. Your job is to find genuine reasons NOT to take it.
-
+Be critical but FAIR — base concerns on the actual numbers, not assumptions.
 Proposed: {decision} {pair}
 Entry: {entry}  Stop: {sl}  TP1: {tp1}
-Confidence: {conf}  Risk:Reward: {rr}
+Stop is {pips_to_sl:.0f} pips from entry. TP1 is {pips_to_tp1:.0f} pips from entry.
+Confidence: {conf}  Risk:Reward: 1:{rr}
 Setup type: {signal.get('setup_type')}
 4H trend: {tech.get('trend_4h')}  1H trend: {tech.get('trend_1h')}
 ICT bias: {ict.get('ict_bias')}
 Reasoning given: {json.dumps(signal.get('reasoning', {}))[:500]}
 
-Check for red flags: chasing price far from value, counter-trend entry,
-weak or vague structure, entry too close to stop, trading into resistance/support.
-If the setup is genuinely strong with good location, approve it.
-If there are real red flags, reject it.
+The stop is {pips_to_sl:.0f} pips away — do NOT say "too close to stop" unless under 8 pips.
+A 15+ pip stop is normal. Judge ONLY on real flaws: counter-trend entry (fights 4H trend),
+chasing price far from value, or genuinely weak/vague structure. If sound, APPROVE.
 
 Respond ONLY with JSON: {{"verdict": "approve" or "reject", "concern": "one short sentence"}}"""
 

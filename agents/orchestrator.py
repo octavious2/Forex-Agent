@@ -18,7 +18,7 @@ _pairs_scanned = 0
 _pair_rotation_index = 0
 
 # Raised confidence bar — only act on genuinely strong setups
-DEEP_MIN_CONFIDENCE = 75   # was 65 — fewer, higher-quality trades
+DEEP_MIN_CONFIDENCE = 70   # was 65 — fewer, higher-quality trades
 
 def run_once():
     global _signals_sent, _pairs_scanned
