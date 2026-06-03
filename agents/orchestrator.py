@@ -154,25 +154,31 @@ def run_once():
             print(f"  ❌ {pair} screen failed: {e}")
             continue
 
-    # ── RANK and pick the best TWO candidates ──────────────────────────
+    # ── RANK all candidates, then fall through verifying until 2 approved ──
     candidates.sort(key=lambda c: c["score"], reverse=True)
-    top = candidates[:2]
+    MAX_TRADES = 2   # approve at most this many per cycle
 
-    if not top:
+    if not candidates:
         print(f"\n🤔 No qualifying setups across any pair this cycle. Waiting.")
     else:
-        print(f"\n🎯 {len(candidates)} candidate(s) found. Deep-verifying top {len(top)}:")
+        print(f"\n🎯 {len(candidates)} candidate(s) found. Verifying best-first "
+              f"until {MAX_TRADES} approved or list exhausted:")
 
     from agents.trade_advisor import deep_verify
-    for cand in top:
+    approved_count = 0
+    for cand in candidates:
+        if approved_count >= MAX_TRADES:
+            print(f"  ✋ Reached {MAX_TRADES} approved trades — stopping for this cycle")
+            break
         pair   = cand["pair"]
         signal = cand["signal"]
         print(f"\n🔬 Deep-verifying {pair} ({cand['decision']} {cand['confidence']}/100)...")
         approved, reason = deep_verify(pair, signal, cand["tech"], cand["ict"])
         if not approved:
-            print(f"  🛑 {pair} VETOED — {reason}")
+            print(f"  🛑 {pair} VETOED — {reason} → moving to next candidate")
             continue
         print(f"  ✅ {pair} APPROVED — {reason}")
+        approved_count += 1
 
         decision   = cand["decision"]
         confidence = cand["confidence"]
