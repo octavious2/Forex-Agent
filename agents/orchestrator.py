@@ -75,7 +75,13 @@ def run_once():
     print(f"🔍 Scanning {len(PAIRS)} pairs | {now} | {session.upper()}")
     print(f"{'='*50}")
 
-    for pair in PAIRS:
+    # Deep mode: ONE pair per cycle, rotating through the list
+    global _pair_rotation_index
+    selected_pair = PAIRS[_pair_rotation_index % len(PAIRS)]
+    _pair_rotation_index = (_pair_rotation_index + 1) % len(PAIRS)
+    print(f"\n>>> Deep analysis this cycle: {selected_pair}")
+
+    for pair in [selected_pair]:
 
         # Skip pairs with active signals
         if has_active_signal(pair, hours=6):
@@ -174,7 +180,7 @@ def run_once():
                 print(f"  ✅ Signal sent to Discord! (ID: {signal_id})")
             else:
                 print(f"  ⏸  WAIT — conf={confidence} rr={rr} "
-                      f"(need ≥{MIN_CONFIDENCE} / ≥{MIN_RR})")
+                      f"(need ≥{DEEP_MIN_CONFIDENCE} / ≥{MIN_RR})")
 
             _pairs_scanned += 1
             time.sleep(3)
