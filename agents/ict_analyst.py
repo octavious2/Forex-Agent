@@ -127,7 +127,22 @@ Identify and respond ONLY with valid JSON (no markdown, no explanation outside J
         elif "```" in raw:
             raw = raw.split("```")[1].split("```")[0].strip()
 
-        result = json.loads(raw)
+        # Robust JSON extraction — find the outermost {...} even with surrounding text
+        try:
+            result = json.loads(raw)
+        except json.JSONDecodeError:
+            # Extract the first complete JSON object by brace matching
+            start = raw.find("{")
+            if start >= 0:
+                depth = 0
+                for i in range(start, len(raw)):
+                    if raw[i] == "{": depth += 1
+                    elif raw[i] == "}":
+                        depth -= 1
+                        if depth == 0:
+                            raw = raw[start:i+1]
+                            break
+            result = json.loads(raw)
         result["pair"] = pair
         return result
 
