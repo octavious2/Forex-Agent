@@ -32,10 +32,11 @@ def analyse(pair: str) -> dict:
     calendar    = _get_economic_calendar(base, quote)
     now_utc     = datetime.now(timezone.utc)
 
-    # Block for 60 min BEFORE and 120 min AFTER high-impact events
+    # Block 60 min BEFORE and 30 min AFTER high-impact events
+    # (initial volatility spike passes within ~30 min; trends resume after)
     imminent = [e for e in calendar
                 if e.get("impact") == "High"
-                and -120 <= e.get("mins_away", 999) <= 60]
+                and -30 <= e.get("mins_away", 999) <= 60]
 
     if imminent:
         event = imminent[0]
