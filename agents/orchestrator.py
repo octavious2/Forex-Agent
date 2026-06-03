@@ -260,17 +260,12 @@ def _execute_on_mt5(signal: dict, session: str, signal_id: int = 0):
         if status in ("executed", "placed"):
             label = "EXECUTED" if status == "executed" else "ORDER PLACED"
             print(f"  🤖 MT5 {label}: ticket #{ticket}")
-            from notifications.discord import send_discord
-            send_discord({"embeds": [{
-                "title": f"🤖 MT5 DEMO EXECUTED — {signal['pair']} {signal.get('decision','')}",
-                "color": 0x00FF88,
-                "fields": [
-                    {"name": "Ticket",  "value": f"`#{ticket}`",             "inline": True},
-                    {"name": "Lot",     "value": "`0.01`",                   "inline": True},
-                    {"name": "Price",   "value": f"`{result.get('price','')}` ", "inline": True},
-                ],
-                "footer": {"text": "Demo account — paper trading"}
-            }]})
+            from notifications.discord import send_status_update
+            send_status_update(
+                f"🤖 **MT5 DEMO EXECUTED** — {signal['pair']} {signal.get('decision','')}\n"
+                f"Ticket #{ticket} • Price {result.get('price','')} • Demo paper trading",
+                color=0x00FF88
+            )
         else:
             print(f"  ⚠ MT5 execution: {status} — {result.get('message','')}")
     except Exception as e:

@@ -4,7 +4,7 @@ Synthesises all agent outputs into a final trade recommendation.
 """
 import json
 from groq import Groq
-from config.settings import GROQ_API_KEY, LLAMA_MODEL, MIN_CONFIDENCE, MIN_RR
+from config.settings import GROQ_API_KEY, LLAMA_MODEL, LLAMA_SMALL, MIN_CONFIDENCE, MIN_RR
 from database.signal_log import get_performance_summary
 from agents.memory import get_recent_narrative, get_pair_context, get_performance_context
 

@@ -178,3 +178,11 @@ def get_pending_signals() -> list:
             "created_at": r[9], "mt5_ticket": r[10] or 0
         })
     return result
+
+def set_ticket(signal_id: int, ticket: int):
+    """Link a database signal to its real MT5 ticket number."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE signals SET mt5_ticket=? WHERE id=?", (ticket, signal_id))
+    conn.commit()
+    conn.close()
