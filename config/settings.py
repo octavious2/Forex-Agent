@@ -38,7 +38,7 @@ MIN_RR         = 1.5   # minimum risk:reward
 MIN_CONFIDENCE = 65    # minimum score to send alert
 
 # ── Scanner ───────────────────────────────────────────────────────────
-SCAN_INTERVAL_MIN = 15  # run every 15 minutes
+SCAN_INTERVAL_MIN = 30  # run every 15 minutes
 
 # ── Sessions (UTC hours) ──────────────────────────────────────────────
 SESSIONS = {
