@@ -275,6 +275,8 @@ def deep_verify(pair, signal, tech, ict):
         return False, f"confidence {conf} below 70"
     if rr < 1.5:
         return False, f"RR {rr} below 1.5"
+    if rr > 5:
+        return False, f"RR {rr} suspiciously high — likely a too-tight stop artifact"
     if not (entry and sl and tp1):
         return False, "missing entry/SL/TP1"
     if signal.get("setup_type") in ("structure_break", "confluence"):

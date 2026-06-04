@@ -84,6 +84,8 @@ Also read these recent journal entries for context:
 
 Write a concise trader's journal entry (max 150 words) covering:
 1. What is the overall market regime right now (risk-on/risk-off, DXY trend)?
+   (Correct relationship — do not invert: a FALLING dollar/DXY tends to push
+   EUR/USD and GBP/USD UP and USD/JPY DOWN; a RISING dollar does the reverse.)
 2. Which pairs have the clearest setups and why?
 3. What changed from the previous scan?
 4. Any key levels being tested or broken?
