@@ -118,14 +118,19 @@ def _trend(df: pd.DataFrame) -> str:
     ema50 = df["close"].ewm(span=50).mean().iloc[-1]
     price = df["close"].iloc[-1]
 
+    # Separation between EMAs as % — avoids forcing ambiguous cases into a direction
+    sep = (ema20 - ema50) / ema50 * 100  # positive = bullish lean, negative = bearish
+
     if price > ema20 > ema50:
         return "bullish"
     elif price < ema20 < ema50:
         return "bearish"
-    elif ema20 > ema50:
+    elif sep > 0.05:        # EMA20 clearly above EMA50 → genuine bullish pullback
         return "bullish_pullback"
-    else:
+    elif sep < -0.05:       # EMA20 clearly below EMA50 → genuine bearish pullback
         return "bearish_pullback"
+    else:
+        return "ranging"    # EMAs too close to call — neutral, no directional bias
 
 def _market_structure(df: pd.DataFrame) -> dict:
     """Identify HH/HL (uptrend) or LH/LL (downtrend)."""

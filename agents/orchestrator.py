@@ -220,7 +220,12 @@ def _htf_allows(trend_4h, trend_1h, ict_bias, decision) -> bool:
     elif trend_1h in ("bearish","bearish_pullback"): sell_score += 1
     if ict_bias == "bullish":   buy_score  += 1
     elif ict_bias == "bearish": sell_score += 1
-    return buy_score >= sell_score if decision=="BUY" else sell_score >= buy_score
+    # Require HTF to genuinely favour the direction — a tie (e.g. all ranging)
+    # should NOT auto-pass, to avoid trading with no real trend support
+    if decision == "BUY":
+        return buy_score > sell_score
+    else:
+        return sell_score > buy_score
 
 def daily_heartbeat():
     send_heartbeat(_pairs_scanned, _signals_sent)
