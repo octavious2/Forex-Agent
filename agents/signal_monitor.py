@@ -231,8 +231,7 @@ def _check_signal(sig: dict):
     # ── Approaching entry ─────────────────────────────────────────────
     approach_threshold = 30 if pair == "XAUUSD" else 20 if "JPY" in pair else 12
     if pips_to_entry > 0 and pips_to_entry < approach_threshold and not last.get("near_entry"):
-        eta = _estimate_eta(pair, direction, price, entry)
-        _send_approaching_entry(sig, price, pips_to_entry, eta)
+        # Discord alert suppressed — low value, console only
         _last_notified[sig_id] = {**last, "near_entry": True}
         _save_notified(sig_id, _last_notified[sig_id])
         print(f"  📍 {pair} approaching entry — {pips_to_entry:.1f} pips away")
@@ -240,7 +239,7 @@ def _check_signal(sig: dict):
 
     # ── Price already in entry zone ───────────────────────────────────
     if at_entry and not last.get("in_zone"):
-        _send_in_zone(sig, price, pips_to_tp1, pips_to_sl)
+        # Discord alert suppressed — fill confirmation covers this, console only
         _last_notified[sig_id] = {**last, "in_zone": True}
         _save_notified(sig_id, _last_notified[sig_id])
         print(f"  🎯 {pair} IN ENTRY ZONE — take the trade!")
@@ -248,8 +247,7 @@ def _check_signal(sig: dict):
 
     # ── Moving away — setup deteriorating ────────────────────────────
     if moving_away and not last.get("warned"):
-        analysis = _analyse_deterioration(pair, direction, price, entry, sl)
-        _send_warning(sig, price, analysis)
+        # Discord alert suppressed — low value, console only
         _last_notified[sig_id] = {**last, "warned": True}
         _save_notified(sig_id, _last_notified[sig_id])
         print(f"  ⚠ {pair} moving away from entry")
@@ -257,7 +255,7 @@ def _check_signal(sig: dict):
 
     # ── Regular 30-min status update ─────────────────────────────────
     last_update = last.get("status_time")
-    if not last_update or _minutes_since(last_update) >= 30:
+    if not last_update or _minutes_since(last_update) >= 240:
         progress = _get_progress(direction, price, entry, sl, tp1)
         _send_status(sig, price, pips_to_entry, pips_to_tp1,
                      pips_to_sl, progress)

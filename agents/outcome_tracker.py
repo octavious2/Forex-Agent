@@ -60,8 +60,21 @@ def check_outcomes():
         tp3       = sig["tp3"]
         entry     = sig["entry"] or 0
 
-        if not sl or not tp1:
+        if not sl or not tp1 or not entry:
             continue
+
+        # FILL VERIFICATION: never record an outcome for a signal that did not
+        # actually fill in MT5. Prevents phantom wins/losses on errored or
+        # unfilled orders (e.g. "Symbol not found", limit never triggered).
+        try:
+            from execution.mt5_bridge import get_open_positions, check_mt5_running
+            if check_mt5_running():
+                open_syms = [p.get("symbol") for p in get_open_positions()]
+                ticket    = sig.get("mt5_ticket", 0) or 0
+                if pair not in open_syms and ticket == 0:
+                    continue  # never filled — skip, let it expire
+        except Exception:
+            pass
 
         price = get_current_price(pair)
         if price == 0:
