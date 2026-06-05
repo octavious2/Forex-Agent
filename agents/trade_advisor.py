@@ -182,6 +182,34 @@ Rules:
             pass
 
 
+        # Minimum STOP distance — too-tight stops get noise-stopped before the
+        # trade can work. Widen to a sane floor, then recheck RR.
+        try:
+            entry_s = float(result.get("entry_low") or result.get("entry_high") or result.get("price") or 0)
+            sl_s    = float(result.get("stop_loss") or 0)
+            tp1_s   = float(result.get("tp1") or 0)
+            dec_s   = result.get("decision", "")
+            psz = 0.0001
+            if "JPY" in pair: psz = 0.01
+            elif pair == "XAUUSD": psz = 0.1
+            min_stop = 150 if pair == "XAUUSD" else 15
+            if entry_s and sl_s and dec_s in ("BUY", "SELL"):
+                stop_dist = abs(entry_s - sl_s) / psz
+                if stop_dist < min_stop:
+                    if dec_s == "BUY":
+                        result["stop_loss"] = round(entry_s - min_stop * psz, 5)
+                    else:
+                        result["stop_loss"] = round(entry_s + min_stop * psz, 5)
+                    print(f"[trade_advisor] {pair} stop only {stop_dist:.0f} pips - widened to {min_stop}")
+                    if tp1_s:
+                        new_rr = abs(tp1_s - entry_s) / (min_stop * psz)
+                        result["rr_ratio"] = round(new_rr, 2)
+                        if new_rr < 1.5:
+                            print(f"[trade_advisor] {pair} RR now {new_rr:.2f} after widening - WAIT")
+                            result["decision"] = "WAIT"
+        except Exception:
+            pass
+
         # Ensure TP2 and TP3 are populated — extrapolate from TP1 and SL if null
         try:
             sl   = float(result.get("stop_loss") or 0)
