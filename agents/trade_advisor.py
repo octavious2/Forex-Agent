@@ -124,21 +124,26 @@ Rules:
 - Stop loss must be beyond a structural level, not arbitrary"""
 
     try:
-        # Screening generation uses Llama (high volume) — Gemini is reserved
-        # for the critical deep_verify pass to conserve its limited quota
+        raw = None
+        # Generate with Gemini Flash-Lite first (sound levels, sustainable quota)
         try:
-            response = client.chat.completions.create(
-                model=LLAMA_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1, max_tokens=1500,
-            )
-        except Exception as rate_err:
-            response = client.chat.completions.create(
-                model=LLAMA_SMALL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1, max_tokens=1500,
-            )
-        raw = response.choices[0].message.content.strip()
+            raw = _gemini_generate(prompt)
+        except Exception as gem_err:
+            print(f"[trade_advisor] Gemini gen unavailable ({str(gem_err)[:40]}) — Llama fallback")
+            try:
+                response = client.chat.completions.create(
+                    model=LLAMA_MODEL,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1, max_tokens=1500,
+                )
+            except Exception as rate_err:
+                response = client.chat.completions.create(
+                    model=LLAMA_SMALL,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1, max_tokens=1500,
+                )
+            raw = response.choices[0].message.content
+        raw = raw.strip()
 
         if "```json" in raw:
             raw = raw.split("```json")[1].split("```")[0].strip()
@@ -262,10 +267,10 @@ technical levels. A stop at 1.1640 will be hunted. A stop at 1.1634 will not.
 
 
 def _gemini_generate(prompt):
-    """Generate the trade signal on Gemini 2.5 Flash (smart reasoning)."""
+    """Generate the trade signal on Gemini 2.5 Flash-Lite (sustainable quota)."""
     from google import genai
     gclient = genai.Client(api_key=GEMINI_API_KEY)
-    r = gclient.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+    r = gclient.models.generate_content(model="gemini-2.5-flash-lite", contents=prompt)
     return r.text
 
 def _gemini_verify(prompt):
