@@ -124,3 +124,20 @@ def pip_value(pair: str) -> float:
         return 1.0   # $1 per unit for BTC
     else:
         return 0.0001
+
+
+def get_spread(pair: str) -> float:
+    """Read live spread (in pips) for a pair from the MT5 status file.
+    Returns a large number if unavailable, so callers reject the trade safely."""
+    try:
+        import json
+        from pathlib import Path
+        sf = Path.home() / ".mt5/drive_c/Program Files/MetaTrader 5/MQL5/Files/lifetap_status.json"
+        data = json.loads(sf.read_text())
+        spreads = data.get("spreads", {})
+        info = spreads.get(pair)
+        if info and "spread_pips" in info:
+            return float(info["spread_pips"])
+    except Exception:
+        pass
+    return 999.0  # unknown — caller should treat as untradeable

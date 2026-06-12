@@ -244,11 +244,29 @@ void WriteStatus()
       }
    }
    orders+="]";
+
+   // Build current spreads for the watched pairs (for scalping decisions)
+   string spairs[] = {"EURUSD","GBPUSD","USDJPY","XAUUSD"};
+   string spreads = "{";
+   for(int i=0;i<ArraySize(spairs);i++)
+   {
+      double a  = SymbolInfoDouble(spairs[i],SYMBOL_ASK);
+      double b  = SymbolInfoDouble(spairs[i],SYMBOL_BID);
+      double pt = SymbolInfoDouble(spairs[i],SYMBOL_POINT);
+      int dig   = (int)SymbolInfoInteger(spairs[i],SYMBOL_DIGITS);
+      double pip = (dig==5 || dig==3) ? pt*10 : pt;
+      double spread_pips = (pip>0) ? (a-b)/pip : 0;
+      if(i>0) spreads += ",";
+      spreads += StringFormat("\"%s\":{\"bid\":%.5f,\"ask\":%.5f,\"spread_pips\":%.2f}",
+                              spairs[i], b, a, spread_pips);
+   }
+   spreads += "}";
+
    FileWriteString(fh,StringFormat(
       "{\"ea_active\":true,\"balance\":%.2f,\"equity\":%.2f,"
-      "\"positions\":%s,\"pending_orders\":%s,\"time\":\"%s\"}",
+      "\"positions\":%s,\"pending_orders\":%s,\"spreads\":%s,\"time\":\"%s\"}",
       AccountInfoDouble(ACCOUNT_BALANCE),AccountInfoDouble(ACCOUNT_EQUITY),
-      positions,orders,TimeToString(TimeGMT(),TIME_DATE|TIME_SECONDS)));
+      positions,orders,spreads,TimeToString(TimeGMT(),TIME_DATE|TIME_SECONDS)));
    FileClose(fh);
 }
 

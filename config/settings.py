@@ -61,3 +61,10 @@ MIN_ATR = {
     "GBPJPY": 0.12,     # 12 pips
     "AUDUSD": 0.0007,   # 7 pips
 }
+
+# ── Scalping configuration ──────────────────────────────────────────
+SCALP_PAIRS = ["EURUSD", "GBPUSD", "USDJPY"]   # tight spreads, scalp these
+SWING_PAIRS = ["XAUUSD"]                         # wide spread, swing only
+SCALP_TARGET_PIPS = 12      # take-profit target for scalps
+SCALP_STOP_PIPS   = 10      # stop for scalps (tight, but spread-checked)
+SCALP_MAX_SPREAD_RATIO = 0.25   # reject scalp if spread > 25% of target

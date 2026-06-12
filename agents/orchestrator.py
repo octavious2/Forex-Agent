@@ -1,12 +1,13 @@
 import json
 import time
 from datetime import datetime, timezone
-from config.settings import PAIRS, MIN_CONFIDENCE, MIN_RR
+from config.settings import PAIRS, MIN_CONFIDENCE, MIN_RR, SCALP_PAIRS
 from data.price_feed import get_session
 from agents.technical import analyse as technical_analyse
 from agents.ict_analyst import analyse as ict_analyse
 from agents.fundamental import analyse as fundamental_analyse
 from agents.trade_advisor import advise
+from agents.scalper import scalp_signal
 from database.signal_log import log_signal, has_active_signal
 from agents.risk_manager import calculate_lot_size, get_account_balance, should_move_breakeven
 from notifications.discord import send_signal, send_heartbeat
@@ -87,6 +88,32 @@ def run_once():
         # Skip pairs that already have an active position/signal
         if has_active_signal(pair, hours=6):
             print(f"→ {pair}: ⏭  already has active signal, skipping")
+            continue
+
+        # ── SCALP PATH — tight-spread forex pairs, fast momentum ──
+        if pair in SCALP_PAIRS:
+            print(f"\n→ Scalping {pair}...")
+            _pairs_scanned += 1
+            try:
+                sig = scalp_signal(pair)
+                if sig.get("decision") in ("BUY", "SELL"):
+                    sig["session"] = session
+                    conf = int(sig.get("confidence", 0))
+                    rr_s = float(sig.get("rr_ratio", 0))
+                    # Scalps skip swing gates (HTF, min-stop, deep_verify) —
+                    # they have their own spread gate + momentum alignment.
+                    candidates.append({
+                        "pair": pair, "signal": sig, "tech": {}, "ict": {},
+                        "decision": sig["decision"],
+                        "confidence": conf, "rr": rr_s, "score": conf * rr_s,
+                        "scalp": True,
+                    })
+                    print(f"  ✅ {pair}: SCALP {sig['decision']} {conf}/100 "
+                          f"RR 1:{rr_s} spread {sig.get('spread_at_signal','?')}")
+                else:
+                    print(f"  📊 {pair}: WAIT — {sig.get('reason','no momentum')}")
+            except Exception as e:
+                print(f"  ⚠ {pair} scalp error: {e}")
             continue
 
         print(f"\n→ Screening {pair}...")
@@ -172,12 +199,16 @@ def run_once():
             break
         pair   = cand["pair"]
         signal = cand["signal"]
-        print(f"\n🔬 Deep-verifying {pair} ({cand['decision']} {cand['confidence']}/100)...")
-        approved, reason = deep_verify(pair, signal, cand["tech"], cand["ict"])
-        if not approved:
-            print(f"  🛑 {pair} VETOED — {reason} → moving to next candidate")
-            continue
-        print(f"  ✅ {pair} APPROVED — {reason}")
+        # Scalps skip deep_verify — own spread + momentum-alignment gates
+        if cand.get("scalp"):
+            print(f"\n⚡ {pair} SCALP {cand['decision']} {cand['confidence']}/100 — executing")
+        else:
+            print(f"\n🔬 Deep-verifying {pair} ({cand['decision']} {cand['confidence']}/100)...")
+            approved, reason = deep_verify(pair, signal, cand["tech"], cand["ict"])
+            if not approved:
+                print(f"  🛑 {pair} VETOED — {reason} → moving to next candidate")
+                continue
+            print(f"  ✅ {pair} APPROVED — {reason}")
         approved_count += 1
 
         decision   = cand["decision"]
