@@ -4,11 +4,29 @@ Synthesises all agent outputs into a final trade recommendation.
 """
 import json
 from groq import Groq
+import os
 from config.settings import GROQ_API_KEY, LLAMA_MODEL, LLAMA_SMALL, MIN_CONFIDENCE, MIN_RR, GEMINI_API_KEY
 from database.signal_log import get_performance_summary
 from agents.memory import get_recent_narrative, get_pair_context, get_performance_context
 
 client = Groq(api_key=GROQ_API_KEY)
+
+# OpenRouter — reliable access to capable models (DeepSeek primary)
+from openai import OpenAI
+OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
+or_client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_KEY) if OPENROUTER_KEY else None
+OR_MODEL = "deepseek/deepseek-chat"
+
+def _or_complete(prompt, max_tokens=1500):
+    """Call OpenRouter (DeepSeek). Raises on failure so callers can fall back."""
+    if not or_client:
+        raise RuntimeError("OpenRouter not configured")
+    r = or_client.chat.completions.create(
+        model=OR_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.1, max_tokens=max_tokens,
+    )
+    return r.choices[0].message.content
 
 def advise(pair: str, tech: dict, ict: dict,
            session: str, account_balance: float = None) -> dict:
@@ -125,24 +143,27 @@ Rules:
 
     try:
         raw = None
-        # Generate with Gemini Flash-Lite first (sound levels, sustainable quota)
+        # Primary: OpenRouter DeepSeek (reliable, capable). Fallbacks: Gemini, Llama.
         try:
-            raw = _gemini_generate(prompt)
-        except Exception as gem_err:
-            print(f"[trade_advisor] Gemini gen unavailable ({str(gem_err)[:40]}) — Llama fallback")
+            raw = _or_complete(prompt, max_tokens=1500)
+        except Exception as or_err:
+            print(f"[trade_advisor] OpenRouter gen failed ({str(or_err)[:40]}) — trying Gemini")
             try:
-                response = client.chat.completions.create(
-                    model=LLAMA_MODEL,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.1, max_tokens=1500,
-                )
-            except Exception as rate_err:
-                response = client.chat.completions.create(
-                    model=LLAMA_SMALL,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.1, max_tokens=1500,
-                )
-            raw = response.choices[0].message.content
+                raw = _gemini_generate(prompt)
+            except Exception:
+                try:
+                    response = client.chat.completions.create(
+                        model=LLAMA_MODEL,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.1, max_tokens=1500,
+                    )
+                except Exception:
+                    response = client.chat.completions.create(
+                        model=LLAMA_SMALL,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.1, max_tokens=1500,
+                    )
+                raw = response.choices[0].message.content
         raw = raw.strip()
 
         if "```json" in raw:
@@ -346,25 +367,28 @@ Respond ONLY with JSON: {{"verdict": "approve" or "reject", "concern": "one shor
 
     try:
         raw = None
-        # Smart reviewer first: Gemini 2.5 Flash (separate quota, strong reasoning)
+        # Primary reviewer: OpenRouter DeepSeek. Fallbacks: Gemini Flash, Llama.
         try:
-            raw = _gemini_verify(prompt)
-            print("  [deep_verify] reviewed by Gemini 2.5 Flash")
-        except Exception as gem_err:
-            print(f"  [deep_verify] Gemini unavailable ({str(gem_err)[:50]}) — falling back to Llama")
+            raw = _or_complete(prompt, max_tokens=200)
+            print("  [deep_verify] reviewed by OpenRouter DeepSeek")
+        except Exception as or_err:
             try:
-                response = client.chat.completions.create(
-                    model=LLAMA_MODEL,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.2, max_tokens=200,
-                )
-            except Exception as rate_err:
-                response = client.chat.completions.create(
-                    model=LLAMA_SMALL,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.2, max_tokens=200,
-                )
-            raw = response.choices[0].message.content
+                raw = _gemini_verify(prompt)
+                print("  [deep_verify] reviewed by Gemini 2.5 Flash")
+            except Exception:
+                try:
+                    response = client.chat.completions.create(
+                        model=LLAMA_MODEL,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.2, max_tokens=200,
+                    )
+                except Exception:
+                    response = client.chat.completions.create(
+                        model=LLAMA_SMALL,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.2, max_tokens=200,
+                    )
+                raw = response.choices[0].message.content
         raw = raw.strip().replace("```json", "").replace("```", "").strip()
         # Robust JSON extraction
         if not raw.startswith("{"):
