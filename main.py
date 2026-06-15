@@ -28,6 +28,7 @@ if __name__ == "__main__":
     init_db()
     init_memory_db()
 
+    check_outcomes()  # resolve stale pendings from while bot was off
     print("\n🚀 Running initial scan...")
     run_once()
 
