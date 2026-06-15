@@ -15,7 +15,7 @@ client = Groq(api_key=GROQ_API_KEY)
 from openai import OpenAI
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
 or_client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=OPENROUTER_KEY) if OPENROUTER_KEY else None
-OR_MODEL = "deepseek/deepseek-chat"
+OR_MODEL = "openai/gpt-oss-120b:free"
 
 def _or_complete(prompt, max_tokens=1500):
     """Call OpenRouter (DeepSeek). Raises on failure so callers can fall back."""

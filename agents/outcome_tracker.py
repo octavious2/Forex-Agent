@@ -43,6 +43,21 @@ def _sane_pips(raw_pips, pair):
 
 
 
+def _load_closed_deals():
+    """Read MT5's actual closed deals from the status file. Keyed by position id."""
+    try:
+        import json
+        from pathlib import Path
+        sf = Path.home() / ".mt5/drive_c/Program Files/MetaTrader 5/MQL5/Files/lifetap_status.json"
+        data = json.loads(sf.read_text())
+        out = {}
+        for d in data.get("closed_deals", []):
+            out[int(d.get("position", 0))] = d
+        return out
+    except Exception:
+        return {}
+
+
 def check_outcomes():
     """Check all pending signals against current prices."""
     pending = get_pending_signals()
@@ -51,6 +66,7 @@ def check_outcomes():
 
     print(f"\n📋 Checking {len(pending)} pending signals...")
 
+    closed_deals = _load_closed_deals()
     for sig in pending:
         pair      = sig["pair"]
         direction = sig["direction"]
@@ -59,6 +75,25 @@ def check_outcomes():
         tp2       = sig["tp2"]
         tp3       = sig["tp3"]
         entry     = sig["entry"] or 0
+        ticket    = sig.get("mt5_ticket", 0) or 0
+
+        # REAL OUTCOME from MT5 closed-deal history — authoritative, no guessing.
+        if ticket and int(ticket) in closed_deals:
+            deal   = closed_deals[int(ticket)]
+            profit = float(deal.get("profit", 0))
+            outcome = "WIN" if profit > 0 else "LOSS"
+            close_px = float(deal.get("price", 0))
+            pip = pip_value(pair)
+            if entry and close_px and pip:
+                raw_pips = ((close_px - entry) / pip) if direction == "BUY" else ((entry - close_px) / pip)
+                pips = _sane_pips(raw_pips, pair)
+            else:
+                pips = 0
+            update_outcome(sig["id"], outcome, 0, pips)
+            _notify_outcome(sig, outcome, 0, pips, close_px)
+            print(f"  {'🏆' if outcome=='WIN' else '❌'} {pair} {outcome} "
+                  f"${profit:+.2f} ({pips:+.1f} pips) — from MT5 history")
+            continue
 
         if not sl or not tp1 or not entry:
             continue

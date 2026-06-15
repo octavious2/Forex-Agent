@@ -262,11 +262,36 @@ void WriteStatus()
    }
    spreads += "}";
 
+   // Export recently closed deals (our magic only) so Python resolves outcomes
+   // from MT5 reality (real profit), not price-guessing.
+   string closed = "[";
+   bool cfirst = true;
+   datetime cfrom = TimeCurrent() - 86400;
+   if(HistorySelect(cfrom, TimeCurrent()))
+   {
+      int dtotal = HistoryDealsTotal();
+      for(int di=0; di<dtotal; di++)
+      {
+         ulong dt = HistoryDealGetTicket(di);
+         if(HistoryDealGetInteger(dt, DEAL_MAGIC) != 20260529) continue;
+         if(HistoryDealGetInteger(dt, DEAL_ENTRY) != DEAL_ENTRY_OUT) continue;
+         if(!cfirst) closed += ",";
+         closed += StringFormat(
+            "{\"position\":%d,\"symbol\":\"%s\",\"profit\":%.2f,\"price\":%.5f}",
+            (int)HistoryDealGetInteger(dt, DEAL_POSITION_ID),
+            HistoryDealGetString(dt, DEAL_SYMBOL),
+            HistoryDealGetDouble(dt, DEAL_PROFIT),
+            HistoryDealGetDouble(dt, DEAL_PRICE));
+         cfirst = false;
+      }
+   }
+   closed += "]";
+
    FileWriteString(fh,StringFormat(
       "{\"ea_active\":true,\"balance\":%.2f,\"equity\":%.2f,"
-      "\"positions\":%s,\"pending_orders\":%s,\"spreads\":%s,\"time\":\"%s\"}",
+      "\"positions\":%s,\"pending_orders\":%s,\"spreads\":%s,\"closed_deals\":%s,\"time\":\"%s\"}",
       AccountInfoDouble(ACCOUNT_BALANCE),AccountInfoDouble(ACCOUNT_EQUITY),
-      positions,orders,spreads,TimeToString(TimeGMT(),TIME_DATE|TIME_SECONDS)));
+      positions,orders,spreads,closed,TimeToString(TimeGMT(),TIME_DATE|TIME_SECONDS)));
    FileClose(fh);
 }
 
