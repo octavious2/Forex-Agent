@@ -27,6 +27,7 @@ DB_PATH  = Path(__file__).parent.parent / "signals.db"
 # Track last notification — loaded from DB on startup, persisted after each update
 import json as _json
 _last_notified = {}
+_last_consolidated = {'time': None}  # global 15-min status throttle
 
 def _load_notified():
     """Load notification state from database on startup."""
@@ -71,6 +72,37 @@ def monitor_all():
             _check_signal(sig)
         except Exception as e:
             print(f"  ⚠ Monitor error {sig['pair']}: {e}")
+    _send_consolidated_status(signals)
+
+
+def _send_consolidated_status(signals):
+    """One Discord message summarising ALL open trades, at most every 15 min."""
+    last = _last_consolidated.get("time")
+    if last and _minutes_since(last) < 15:
+        return
+    try:
+        from execution.mt5_bridge import get_open_positions
+        from notifications.discord import send_status_update
+        positions = {p.get("symbol"): p for p in get_open_positions()}
+        if not positions:
+            return  # nothing actually open at broker
+        lines = []
+        for sig in signals:
+            pair = sig["pair"]
+            pos  = positions.get(pair)
+            if not pos:
+                continue
+            profit = float(pos.get("profit", 0))
+            emoji  = "\U0001F7E2" if profit >= 0 else "\U0001F534"
+            lines.append(f"{emoji} {pair} {sig['direction']} ${profit:+.2f}")
+        if not lines:
+            return
+        msg = f"\U0001F4CA **Open trades ({len(lines)})**\n" + "\n".join(lines)
+        send_status_update(msg, color=0x3498DB)
+        _last_consolidated["time"] = datetime.now(timezone.utc).isoformat()
+        print(f"  [status] consolidated update sent ({len(lines)} open)")
+    except Exception as e:
+        print(f"  ⚠ consolidated status error: {e}")
 
 def _early_breakeven_check():
     """
@@ -255,7 +287,7 @@ def _check_signal(sig: dict):
 
     # ── Regular 30-min status update ─────────────────────────────────
     last_update = last.get("status_time")
-    if not last_update or _minutes_since(last_update) >= 240:
+    if False:  # per-signal status disabled — consolidated sender handles this now
         progress = _get_progress(direction, price, entry, sl, tp1)
         _send_status(sig, price, pips_to_entry, pips_to_tp1,
                      pips_to_sl, progress)
